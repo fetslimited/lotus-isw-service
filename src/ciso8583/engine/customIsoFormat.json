@@ -1,0 +1,32 @@
+{
+    "2": {
+        "ContentType": "ans",
+        "Label": "SwitchKey",
+        "LenType": "llvar",
+        "MaxLen": 32
+    },
+    "3": {
+        "ContentType": "ans",
+        "Label": "RoutingInformation",
+        "LenType": "fixed",
+        "MaxLen": 48
+    },
+    "13": {
+        "ContentType": "ans",
+        "Label": "Posgeographicdata",
+        "LenType": "fixed",
+        "MaxLen": 17
+    },
+    "25": {
+        "ContentType": "ans",
+        "Label": "ICCData",
+        "LenType": "llllvar",
+        "MaxLen": 9999
+    },
+    "33": {
+        "ContentType": "ans",
+        "Label": "Ett",
+        "LenType": "fixed",
+        "MaxLen": 4
+    }
+}

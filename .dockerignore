@@ -1,0 +1,13 @@
+node_modules
+dist
+logs
+*.log
+.git
+.gitignore
+.env
+*.md
+spec
+.DS_Store
+*.zip
+test.txt
+request.json

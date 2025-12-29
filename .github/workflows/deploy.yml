@@ -1,0 +1,153 @@
+name: Build and Deploy ISW Service
+
+on:
+  push:
+    branches: [main, develop, staging]
+  pull_request:
+    branches: [main, develop, staging]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: isw-service
+  EKS_CLUSTER: cbi-eks-cluster
+
+permissions:
+  id-token: write
+  contents: read
+  security-events: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    # Only deploy on push, not on PRs
+    if: github.event_name != 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Determine environment
+        id: env
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            ENV="${{ github.event.inputs.environment }}"
+          elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            ENV="production"
+          elif [ "${{ github.ref }}" == "refs/heads/develop" ]; then
+            ENV="development"
+          elif [ "${{ github.ref }}" == "refs/heads/staging" ]; then
+            ENV="staging"
+          else
+            ENV="development"
+          fi
+          echo "environment=$ENV" >> $GITHUB_OUTPUT
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: GitHubActions-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Generate image tags
+        id: tags
+        run: |
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          SHORT_SHA=${GITHUB_SHA::8}
+          echo "timestamp=${TIMESTAMP}" >> $GITHUB_OUTPUT
+          echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.tags.outputs.timestamp }}-${{ steps.tags.outputs.short_sha }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.env.outputs.environment }}-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.tags.outputs.timestamp }}-${{ steps.tags.outputs.short_sha }}'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        continue-on-error: true
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER }}
+
+      - name: Deploy to Kubernetes
+        env:
+          ENVIRONMENT: ${{ steps.env.outputs.environment }}
+        run: |
+          NAMESPACE=${{ steps.env.outputs.environment }}
+          IMAGE="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.tags.outputs.timestamp }}-${{ steps.tags.outputs.short_sha }}"
+
+          echo "Deploying to namespace: ${NAMESPACE}"
+          echo "Image: ${IMAGE}"
+
+          # Apply ExternalSecret with environment substitution
+          echo "Applying ExternalSecret..."
+          sed "s/\${ENVIRONMENT}/$ENVIRONMENT/g" k8s/external-secrets/external-secret.yaml | kubectl apply -n ${NAMESPACE} -f -
+
+          # Apply K8s manifests (deployment, service, etc.)
+          echo "Applying K8s manifests..."
+          kubectl apply -f k8s/deployment.yaml -n ${NAMESPACE}
+
+          # Wait for ExternalSecret to sync
+          sleep 10
+
+          # Update image to the newly built one
+          echo "Updating image..."
+          kubectl set image deployment/isw-service \
+            isw-service=${IMAGE} \
+            -n ${NAMESPACE}
+
+          # Wait for rollout to complete
+          kubectl rollout status deployment/isw-service -n ${NAMESPACE} --timeout=300s
+
+      - name: Verify deployment
+        run: |
+          NAMESPACE=${{ steps.env.outputs.environment }}
+          echo "Checking pod status..."
+          kubectl get pods -n ${NAMESPACE} -l app=isw-service
+          echo ""
+          echo "Checking service..."
+          kubectl get svc -n ${NAMESPACE} -l app=isw-service
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          NAMESPACE=${{ steps.env.outputs.environment }}
+          echo "Deployment failed, rolling back..."
+          kubectl rollout undo deployment/isw-service -n ${NAMESPACE} || true
+          kubectl rollout status deployment/isw-service -n ${NAMESPACE} --timeout=300s || true

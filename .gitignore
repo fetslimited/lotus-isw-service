@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Logs
+logs/
+*.log
+jet-logger.log
+
+# Environment files (secrets)
+.env
+.env.*
+!.env.example
+src/pre-start/env/*.env
+!src/pre-start/env/production.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test/debug files
+test.txt
+request.json
+
+# Build scripts (handled by CI/CD)
+build.sh
+
+# Certificates (mounted from K8s secrets)
+certs/
+*.pem
+*.key
+*.crt
+
+# Coverage
+coverage/
+
+# Misc
+*.tgz
+.npm
