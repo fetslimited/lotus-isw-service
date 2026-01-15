@@ -152,7 +152,7 @@ class Interswitch {
             // For CashOut Interswitch
             const terminalId = unpackedMessage.transactingTerminalId;
             requestData['41'] = terminalId;
-            requestData['42'] = `2CBT1125SL00001`;
+            requestData['42'] = `2LTS1125SL00001`;
             requestData['3'] = `50${requestData['3'].substring(2,6)}`;
             //requestData['7'] = moment().format('MMDDHHmmss');
             // For Cashout End
@@ -235,7 +235,7 @@ class Interswitch {
             subFieldMessage['2'] = new Date().getTime().toString().substring(12,-1)
             subFieldMessage['3'] = `                        ${requestData[11]}${requestData[11]}            `;
             subFieldMessage['13'] = `      000000 566`
-            subFieldMessage['22'] = this.getRIDAsXML('627805')
+            subFieldMessage['22'] = this.getRIDAsXML('507870')
             subFieldMessage['25'] = xmlICC
             subFieldMessage['33'] = '6009'
 
@@ -262,10 +262,10 @@ class Interswitch {
     private getRID(terminalId: string){
         const f4 = terminalId.substring(0,4)
          switch (f4) {
-            case "2CBT":
-                return "666076";
+            case "2LTS":
+                return "666303";
             default:
-                return "666076";
+                return "666303";
          }
     }
 
@@ -521,7 +521,7 @@ class Interswitch {
     }
 
     async getTerminalId(){
-        return "2CBT0001";
+        return "2LTS0001";
         //return await TerminalPoolService.getInstance().getNextTerminalId(SwitchName.INTERSWITCH);
     }
 
