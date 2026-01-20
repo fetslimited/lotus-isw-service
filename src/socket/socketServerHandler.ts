@@ -288,6 +288,27 @@ class SocketServerHandler {
 
                 }
 
+                  if (transactionDetails.MTI == "0420"){
+                    const terminalId =  await this.Interswitch.getTerminalId(transactionDetails.terminalId);
+
+                    transactionDetails.transactingTerminalId = terminalId;
+
+                    const clientId = `${terminalId}${transactionDetails.maskedPan}${transactionDetails.rrn}`
+                    
+                    logger.info(`Request Client ID :=> ${clientId} `)
+
+                    this.clients[clientId] = {
+                        posSocketConn: this.socket,
+                        clientId: clientId,
+                        unpackedMessage: unpackedMessage,
+                        transactionDetails: transactionDetails,
+                    }
+
+                    //logger.info(`ALL Stored client data:=> ${JSON.stringify(this.clients)}`)
+                    await this.Interswitch.processReversalTransaction(unpackedMessage, transactionDetails, this.socket, this.iswClient);
+
+                }
+
             } catch(error: any){
                 logger.err("Exception occured in processDataFromSocketServerConnection: " + error.stack)
                 if(this.socket.end()){

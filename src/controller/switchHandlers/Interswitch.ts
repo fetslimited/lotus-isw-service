@@ -127,6 +127,23 @@ class Interswitch {
 
     }
 
+    async processReversalTransaction(unpackedMessage: any, transactionDetails: any, socketServerInstance: any, socketClient: any){
+        logger.info("Processing Reversal Transaction via Interswitch....")
+
+        const encPlainPin = transactionDetails.customerRef;
+
+        let isoMSG;
+            
+        let pinBlock = '0000';
+        if(encPlainPin !== null){
+            pinBlock = this.getPlainPinBlock(encPlainPin)
+        }
+        
+        await this.sendReversalTransaction(unpackedMessage, pinBlock, socketClient);
+
+    }
+    
+
     async handleFinalResponse(unpackedMessage: any, mappedResponse: any, socketServerInstance: any){
         logger.info("Handling Final Response....")
 
@@ -258,6 +275,110 @@ class Interswitch {
         }
         
     }
+
+    async sendReversalTransaction(unpackedMessage: any, plainPinBlock: string, socketClient: any){
+        try{
+            let requestData: any = {};
+            Object.assign(requestData, unpackedMessage.dataElements);
+            let subFieldMessage = baseSubFieldMessage;
+
+            let date = new Date();
+            const mmdd = this.Util.padLeft((date.getMonth()+1).toString(),'0',2) + this.Util.padLeft(date.getDate().toString(),'0',2)
+
+            const pinBlock = await this.getEncryptedPinBlock(plainPinBlock, unpackedMessage.dataElements['2']);
+            //logger.info(`Interswitch: PINBLOCK ${pinBlock}`)
+            // For CashOut Interswitch
+            const terminalId = unpackedMessage.transactingTerminalId;
+            requestData['41'] = terminalId;
+            requestData['42'] = `2LTS1125SL00001`;
+            requestData['3'] = `50${requestData['3'].substring(2,6)}`;
+            //requestData['7'] = moment().format('MMDDHHmmss');
+            // For Cashout End
+            requestData['26'] = null;
+            requestData['30'] = unpackedMessage.dataElements['28'];
+            requestData['55'] = null;
+            requestData['56'] = "1510";
+            requestData['98'] = "3FAB0001";
+            requestData['59'] = unpackedMessage.dataElements['37']+terminalId;
+            requestData['52'] = pinBlock;
+            requestData['15'] = mmdd;
+            requestData['18'] = "6010";
+            requestData['26'] = "04";
+            requestData['28'] = "D00000000";
+            requestData['32'] = "111143";
+            requestData['33'] = "111111";
+            requestData['43'] = this.getField43();
+
+            requestData['90'] = `0200${requestData[11]}${requestData[7]}${this.Util.padLeft(requestData[32], '0', 11)}${this.Util.padLeft(requestData[11], '0', 11)}`
+            requestData['100'] = this.getRID(terminalId)
+
+            requestData['103'] = this.getAccountNumber(terminalId)
+
+            // Account to be settled (After the settlement fee is deducted)
+            requestData['128'] = null;
+            // set dummy data to avoid binary character encode ish of d127 bitmap
+
+            let xmlICC = this.Util.mapICCDataToXML(unpackedMessage);
+            if (!xmlICC){
+                xmlICC = await this.Util.generateStaticICCData(unpackedMessage);
+            }
+
+            //logger.info("Interswitch: Generated ICC Data XML" + xmlICC);
+            
+            //logger.info("Interswitch: ICC Data" + xmlICC);
+            logger.info(`Configured RID for Terminal ID ${unpackedMessage.dataElements['41']} is ${requestData[100]}`)
+
+            let msg = this.myPackager.createISOMsg();
+            msg.setMTI('0420');
+            msg.setField(2, requestData[2])
+            msg.setField(3, requestData[3])
+            msg.setField(4, requestData[4])
+            msg.setField(7, requestData[7])
+            msg.setField(11, requestData[11])
+            msg.setField(12, requestData[12])
+            msg.setField(13, requestData[13])
+            msg.setField(14, requestData[14])
+            msg.setField(15, requestData[15])
+            msg.setField(18, requestData[18])
+            msg.setField(22, requestData[22])
+            msg.setField(23, requestData[23])
+            msg.setField(25, requestData[25])
+            msg.setField(26, requestData[26])
+            msg.setField(28, requestData[28])
+            msg.setField(30, requestData[30])
+            msg.setField(32, requestData[32])
+            msg.setField(33, requestData[11]) 
+            msg.setField(35, requestData[35])
+            msg.setField(37, requestData[37])
+            msg.setField(40, requestData[40])
+            msg.setField(41, requestData[41])
+            msg.setField(42, requestData[42])
+            msg.setField(43, requestData[43])
+            msg.setField(49, requestData[49])
+            msg.setField(52, requestData[52])
+            msg.setField(56, requestData[56])
+            msg.setField(59, requestData[59])
+            msg.setField(90, requestData[90])
+            msg.setField(98, requestData[98])
+            msg.setField(100, requestData[100])
+            msg.setField(103, requestData[103])
+            msg.setField(123, requestData[123])
+
+            let hexIsoMessage = ISOUtil.hexString(msg.pack());        
+            let isoLength = hexIsoMessage.length / 2;
+            let binLength = this.Util.getLengthBytes(isoLength);
+            const isoMessageBuffer = Buffer.from(ISOUtil.hex2byte(hexIsoMessage)); 
+            const requestISOMsg = Buffer.concat([binLength, isoMessageBuffer]);
+
+            logger.info("Sending transaction to Interswitch Postbridge: " + requestISOMsg.toString())
+            this.writeMessage(requestISOMsg, socketClient)
+
+        } catch(error){
+            logger.info("Error sending online transaction message: " + error)
+        }
+        
+    }
+
 
     private getRID(terminalId: string){
         const f4 = terminalId.substring(0,4)
