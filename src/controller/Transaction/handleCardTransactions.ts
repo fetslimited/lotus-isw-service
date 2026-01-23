@@ -324,7 +324,7 @@ class handleCardTransactions {
     }
 
     private getExtraParams<T>(field: string, unpackedMessage: any): T|String {
-        if(unpackedMessage.mti != '0420' || unpackedMessage.mti != '0421'){
+        if(unpackedMessage.mti != '0420' && unpackedMessage.mti != '0421'){
             const params = unpackedMessage.dataElements[59] 
             const paramsArray = params.split('|')
             switch(field){
