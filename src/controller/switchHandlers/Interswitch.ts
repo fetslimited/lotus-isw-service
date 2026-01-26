@@ -139,6 +139,9 @@ class Interswitch {
             pinBlock = this.getPlainPinBlock(encPlainPin)
         }
         
+        // Pass transactingTerminalId from transactionDetails to unpackedMessage
+        unpackedMessage.transactingTerminalId = transactionDetails.transactingTerminalId;
+        
         await this.sendReversalTransaction(unpackedMessage, pinBlock, socketClient);
 
     }
@@ -289,6 +292,7 @@ class Interswitch {
             //logger.info(`Interswitch: PINBLOCK ${pinBlock}`)
             // For CashOut Interswitch
             const terminalId = unpackedMessage.transactingTerminalId;
+            console.log(`Terminal ID for Reversal: ${terminalId}`)
             requestData['41'] = terminalId;
             requestData['42'] = `2LTS1125SL00001`;
             requestData['3'] = requestData['3'] ? `50${requestData['3'].substring(2,6)}` : '500000';
@@ -381,6 +385,7 @@ class Interswitch {
 
 
     private getRID(terminalId: string){
+        if (!terminalId) return "666303";
         const f4 = terminalId.substring(0,4)
          switch (f4) {
             case "2LTS":
@@ -737,6 +742,7 @@ class Interswitch {
     }
 
     private getAccountNumber(terminalId: string){
+        if (!terminalId) return process.env.INTERSWITCH_SETTLEMENT_ACCOUNT;
         
         const f4 = terminalId.substring(0,4)
          switch (f4) {

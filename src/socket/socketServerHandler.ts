@@ -288,7 +288,7 @@ class SocketServerHandler {
 
                 }
 
-                  if (transactionDetails.MTI == "0420"){
+                if (transactionDetails.MTI == "0420"){
                     const terminalId =  await this.Interswitch.getTerminalId(transactionDetails.terminalId);
 
                     transactionDetails.transactingTerminalId = terminalId;
