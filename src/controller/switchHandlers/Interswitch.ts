@@ -291,7 +291,7 @@ class Interswitch {
             const terminalId = unpackedMessage.transactingTerminalId;
             requestData['41'] = terminalId;
             requestData['42'] = `2LTS1125SL00001`;
-            requestData['3'] = `50${requestData['3'].substring(2,6)}`;
+            requestData['3'] = requestData['3'] ? `50${requestData['3'].substring(2,6)}` : '500000';
             //requestData['7'] = moment().format('MMDDHHmmss');
             // For Cashout End
             requestData['26'] = null;
