@@ -371,34 +371,34 @@ class Interswitch {
 
             /**
              * Generate Sub-ISO Message for Field 127 (Reversal-specific sub-fields)
+             * Format based on Interswitch specification
              */
             let reversalSubFieldMessage: any = {};
 
-            // 127.002 - Transaction reference
-            reversalSubFieldMessage['2'] = `LTSPAY_${requestData[37]}${requestData[11]}`;
+            // Generate reference number (9 digits from timestamp)
+            const refNumber = Date.now().toString().slice(-9);
+
+            // 127.002 - Reversal transaction reference: MTI:STAN:DATETIME:REFERENCE
+            // Format: 0420:STAN:MMDDHHMMSS:REFERENCE
+            reversalSubFieldMessage['2'] = `0420:${requestData[11]}:${requestData[7]}:${refNumber}`;
 
             // 127.008 - Routing/additional data
             reversalSubFieldMessage['8'] = ` ${requestData[7]}${requestData[11]}${requestData[37]}      |`;
 
-            // 127.011 - Secondary reference
-            reversalSubFieldMessage['11'] = `LTSPAY_${requestData[37]}${requestData[11].substring(0,5)}`;
+            // 127.011 - Original transaction reference: ORIGINAL_MTI:STAN:DATETIME:REFERENCE
+            // Format: 0200:STAN:MMDDHHMMSS:REFERENCE (references the original purchase)
+            reversalSubFieldMessage['11'] = `0200:${requestData[11]}:${requestData[7]}:${refNumber}`;
 
-            // 127.013 - Currency info (17 chars fixed)
-            reversalSubFieldMessage['13'] = `      000000   566`;
+            // 127.013 - Fixed 17 chars, "834" left-padded with spaces
+            reversalSubFieldMessage['13'] = this.Util.padLeft('834', ' ', 17);
 
             // 127.020 - Date in YYYYMMDD format
             const now = new Date();
             const yyyymmdd = `${now.getFullYear()}${this.Util.padLeft((now.getMonth()+1).toString(),'0',2)}${this.Util.padLeft(now.getDate().toString(),'0',2)}`;
             reversalSubFieldMessage['20'] = yyyymmdd;
 
-            // 127.022 - Metadata with RID
+            // 127.022 - Original RID in XML format
             reversalSubFieldMessage['22'] = this.getRIDAsXML(requestData[100] || '666303');
-
-            // 127.027 - Flag
-            reversalSubFieldMessage['27'] = 'U';
-
-            // 127.033 - Message reason code
-            reversalSubFieldMessage['33'] = '4021';
 
             let subIso = this.iso8583Parser.packSubFieldWithBinaryBitmap(reversalSubFieldMessage, config['127'].nestedElements);
             logger.info(`Interswitch Reversal SubISO msg generated`);
