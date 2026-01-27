@@ -375,33 +375,53 @@ class Interswitch {
              */
             let reversalSubFieldMessage: any = {};
 
+            // Get current date/time components
+            const now = new Date();
+            const year = now.getFullYear().toString();
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            const day = now.getDate().toString().padStart(2, '0');
+
             // Generate reference number (9 digits from timestamp)
             const refNumber = Date.now().toString().slice(-9);
 
-            // 127.002 - Reversal transaction reference: MTI:STAN:DATETIME:REFERENCE
-            // Format: 0420:STAN:MMDDHHMMSS:REFERENCE
-            reversalSubFieldMessage['2'] = `0420:${requestData[11]}:${requestData[7]}:${refNumber}`;
+            // Ensure STAN is 6 chars
+            const stan = (requestData[11] || '000000').toString().padStart(6, '0');
 
-            // 127.008 - Routing/additional data
-            reversalSubFieldMessage['8'] = ` ${requestData[7]}${requestData[11]}${requestData[37]}      |`;
+            // Ensure datetime is 10 chars (MMDDHHMMSS)
+            const datetime = (requestData[7] || '0000000000').toString().padStart(10, '0');
 
-            // 127.011 - Original transaction reference: ORIGINAL_MTI:STAN:DATETIME:REFERENCE
-            // Format: 0200:STAN:MMDDHHMMSS:REFERENCE (references the original purchase)
-            reversalSubFieldMessage['11'] = `0200:${requestData[11]}:${requestData[7]}:${refNumber}`;
+            // 127.002 - Reversal transaction reference (LLVAR, max 32 chars)
+            // Format: MTI:STAN:DATETIME:REF = 4+1+6+1+10+1+9 = 32 chars
+            reversalSubFieldMessage['2'] = `0420:${stan}:${datetime}:${refNumber}`;
 
-            // 127.013 - Fixed 17 chars, "834" left-padded with spaces
-            reversalSubFieldMessage['13'] = this.Util.padLeft('834', ' ', 17);
+            // 127.008 - Routing/additional data (LLLVAR, max 999 chars)
+            const rrn = (requestData[37] || '000000000000').toString();
+            reversalSubFieldMessage['8'] = ` ${datetime}${stan}${rrn}      |`;
 
-            // 127.020 - Date in YYYYMMDD format
-            const now = new Date();
-            const yyyymmdd = `${now.getFullYear()}${this.Util.padLeft((now.getMonth()+1).toString(),'0',2)}${this.Util.padLeft(now.getDate().toString(),'0',2)}`;
-            reversalSubFieldMessage['20'] = yyyymmdd;
+            // 127.011 - Original transaction reference (LLVAR, max 32 chars)
+            // Format: ORIG_MTI:STAN:DATETIME:REF = 4+1+6+1+10+1+9 = 32 chars
+            reversalSubFieldMessage['11'] = `0200:${stan}:${datetime}:${refNumber}`;
 
-            // 127.022 - Original RID in XML format
+            // 127.013 - Fixed 17 chars exactly, "834" right-aligned with spaces
+            reversalSubFieldMessage['13'] = '              834';  // 14 spaces + "834" = 17 chars
+
+            // 127.020 - Date in YYYYMMDD format (FIXED 8 chars, numeric)
+            reversalSubFieldMessage['20'] = `${year}${month}${day}`;
+
+            // 127.022 - Original RID in XML format (LLLLLVAR)
             reversalSubFieldMessage['22'] = this.getRIDAsXML(requestData[100] || '666303');
 
+            // Debug: Log each sub-field value before packing
+            logger.info(`Interswitch Reversal Field 127 sub-fields:`);
+            logger.info(`  127.002: "${reversalSubFieldMessage['2']}" (len: ${reversalSubFieldMessage['2'].length})`);
+            logger.info(`  127.008: "${reversalSubFieldMessage['8']}" (len: ${reversalSubFieldMessage['8'].length})`);
+            logger.info(`  127.011: "${reversalSubFieldMessage['11']}" (len: ${reversalSubFieldMessage['11'].length})`);
+            logger.info(`  127.013: "${reversalSubFieldMessage['13']}" (len: ${reversalSubFieldMessage['13'].length})`);
+            logger.info(`  127.020: "${reversalSubFieldMessage['20']}" (len: ${reversalSubFieldMessage['20'].length})`);
+            logger.info(`  127.022: "${reversalSubFieldMessage['22']}" (len: ${reversalSubFieldMessage['22'].length})`);
+
             let subIso = this.iso8583Parser.packSubFieldWithBinaryBitmap(reversalSubFieldMessage, config['127'].nestedElements);
-            logger.info(`Interswitch Reversal SubISO msg generated`);
+            logger.info(`Interswitch Reversal SubISO packed length: ${subIso.isoMessage?.length}`);
 
             msg.setField(127, subIso.isoMessage)
 
