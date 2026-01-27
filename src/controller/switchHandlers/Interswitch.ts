@@ -372,7 +372,10 @@ class Interswitch {
             /**
              * Generate Sub-ISO Message for Field 127 (Reversal-specific sub-fields)
              * Format based on Interswitch specification
+             * BUILD VERSION: 2026-01-27-v2
              */
+            logger.info(`[REVERSAL-F127] ====== Building Field 127 for Reversal (v2) ======`);
+
             let reversalSubFieldMessage: any = {};
 
             // Get current date/time components
@@ -390,38 +393,46 @@ class Interswitch {
             // Ensure datetime is 10 chars (MMDDHHMMSS)
             const datetime = (requestData[7] || '0000000000').toString().padStart(10, '0');
 
+            logger.info(`[REVERSAL-F127] Input values - STAN: ${stan}, DateTime: ${datetime}, RefNum: ${refNumber}`);
+
             // 127.002 - Reversal transaction reference (LLVAR, max 32 chars)
             // Format: MTI:STAN:DATETIME:REF = 4+1+6+1+10+1+9 = 32 chars
             reversalSubFieldMessage['2'] = `0420:${stan}:${datetime}:${refNumber}`;
+            logger.info(`[REVERSAL-F127] Set 127.002: "${reversalSubFieldMessage['2']}" (${reversalSubFieldMessage['2'].length} chars)`);
 
             // 127.008 - Routing/additional data (LLLVAR, max 999 chars)
             const rrn = (requestData[37] || '000000000000').toString();
             reversalSubFieldMessage['8'] = ` ${datetime}${stan}${rrn}      |`;
+            logger.info(`[REVERSAL-F127] Set 127.008: "${reversalSubFieldMessage['8']}" (${reversalSubFieldMessage['8'].length} chars)`);
 
             // 127.011 - Original transaction reference (LLVAR, max 32 chars)
             // Format: ORIG_MTI:STAN:DATETIME:REF = 4+1+6+1+10+1+9 = 32 chars
             reversalSubFieldMessage['11'] = `0200:${stan}:${datetime}:${refNumber}`;
+            logger.info(`[REVERSAL-F127] Set 127.011: "${reversalSubFieldMessage['11']}" (${reversalSubFieldMessage['11'].length} chars)`);
 
             // 127.013 - Fixed 17 chars exactly, "834" right-aligned with spaces
             reversalSubFieldMessage['13'] = '              834';  // 14 spaces + "834" = 17 chars
+            logger.info(`[REVERSAL-F127] Set 127.013: "${reversalSubFieldMessage['13']}" (${reversalSubFieldMessage['13'].length} chars)`);
 
             // 127.020 - Date in YYYYMMDD format (FIXED 8 chars, numeric)
             reversalSubFieldMessage['20'] = `${year}${month}${day}`;
+            logger.info(`[REVERSAL-F127] Set 127.020: "${reversalSubFieldMessage['20']}" (${reversalSubFieldMessage['20'].length} chars)`);
 
             // 127.022 - Original RID in XML format (LLLLLVAR)
             reversalSubFieldMessage['22'] = this.getRIDAsXML(requestData[100] || '666303');
+            logger.info(`[REVERSAL-F127] Set 127.022: "${reversalSubFieldMessage['22']}" (${reversalSubFieldMessage['22'].length} chars)`);
 
-            // Debug: Log each sub-field value before packing
-            logger.info(`Interswitch Reversal Field 127 sub-fields:`);
-            logger.info(`  127.002: "${reversalSubFieldMessage['2']}" (len: ${reversalSubFieldMessage['2'].length})`);
-            logger.info(`  127.008: "${reversalSubFieldMessage['8']}" (len: ${reversalSubFieldMessage['8'].length})`);
-            logger.info(`  127.011: "${reversalSubFieldMessage['11']}" (len: ${reversalSubFieldMessage['11'].length})`);
-            logger.info(`  127.013: "${reversalSubFieldMessage['13']}" (len: ${reversalSubFieldMessage['13'].length})`);
-            logger.info(`  127.020: "${reversalSubFieldMessage['20']}" (len: ${reversalSubFieldMessage['20'].length})`);
-            logger.info(`  127.022: "${reversalSubFieldMessage['22']}" (len: ${reversalSubFieldMessage['22'].length})`);
+            // Log all sub-fields before packing
+            logger.info(`[REVERSAL-F127] All sub-fields set: ${JSON.stringify(Object.keys(reversalSubFieldMessage))}`);
+
+            // Check if config exists
+            logger.info(`[REVERSAL-F127] Config 127 nestedElements exists: ${!!config['127']?.nestedElements}`);
 
             let subIso = this.iso8583Parser.packSubFieldWithBinaryBitmap(reversalSubFieldMessage, config['127'].nestedElements);
-            logger.info(`Interswitch Reversal SubISO packed length: ${subIso.isoMessage?.length}`);
+
+            logger.info(`[REVERSAL-F127] Packed result - length: ${subIso.isoMessage?.length}, bitmap: ${subIso.binaryBitmap?.substring(0,16)}`);
+            logger.info(`[REVERSAL-F127] Packed content preview: ${subIso.isoMessage?.substring(0, 100)}...`);
+            logger.info(`[REVERSAL-F127] ====== Field 127 Build Complete ======`);
 
             msg.setField(127, subIso.isoMessage)
 
