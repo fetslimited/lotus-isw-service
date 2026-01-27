@@ -410,8 +410,8 @@ class Interswitch {
             reversalSubFieldMessage['11'] = `0200:${stan}:${datetime}:${refNumber}`;
             logger.info(`[REVERSAL-F127] Set 127.011: "${reversalSubFieldMessage['11']}" (${reversalSubFieldMessage['11'].length} chars)`);
 
-            // 127.013 - Fixed 17 chars exactly, "834" right-aligned with spaces
-            reversalSubFieldMessage['13'] = '              834';  // 14 spaces + "834" = 17 chars
+            // 127.013 - Fixed 17 chars exactly, "834" LEFT-aligned with trailing spaces
+            reversalSubFieldMessage['13'] = '834              ';  // "834" + 14 spaces = 17 chars
             logger.info(`[REVERSAL-F127] Set 127.013: "${reversalSubFieldMessage['13']}" (${reversalSubFieldMessage['13'].length} chars)`);
 
             // 127.020 - Date in YYYYMMDD format (FIXED 8 chars, numeric)
@@ -823,7 +823,7 @@ class Interswitch {
     }
 
     private getRIDAsXML(rid: string): string {
-        return `212ORIGINAL_RID235<ORIGINAL_RID>${rid}</ORIGINAL_RID>`;
+        return `<ORIGINAL_RID>${rid}</ORIGINAL_RID>`;
     }
 
     /**

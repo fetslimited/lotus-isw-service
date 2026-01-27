@@ -117,10 +117,14 @@ class Pack {
         this.dataElementPart = '';
         this.secondaryBitmapBit = '0';
 
-        //Loop through the Data Elements
-        for (let i = 1; i <= Object.keys(this.dataElements).length; i++) {
+        // Find the maximum field number to determine bitmap size
+        const fieldNumbers = Object.keys(this.dataElements).map(k => parseInt(k, 10)).filter(n => !isNaN(n));
+        const maxField = fieldNumbers.length > 0 ? Math.max(...fieldNumbers) : 64;
+        const bitmapSize = maxField > 64 ? 128 : 64;
 
-            const field = i + 1;
+        //Loop through all possible field positions (2 to bitmapSize)
+        for (let field = 2; field <= bitmapSize; field++) {
+
             let elementData;
             let dataElementPart = '';
             let binaryBitmapBit = '0';
