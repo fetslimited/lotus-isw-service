@@ -92,7 +92,7 @@ class Interswitch {
         socketClient.write(data);
     }  
 
-    async repackMappedIso(unpackedMessage: any, mappedResponse: any){
+    async repackMappedIso(unpackedMessage: any, mappedResponse: any, isReversal: boolean = false){
 
         let dataElements = unpackedMessage.dataElements;
         dataElements['39'] = mappedResponse.responseCode;
@@ -100,7 +100,8 @@ class Interswitch {
         dataElements['11'] = mappedResponse.stan || unpackedMessage.dataElements['11'];
         dataElements['38'] = mappedResponse.authCode || unpackedMessage.dataElements['38'];
 
-        const packedIso = this.iso8583Parser.pack('0210', dataElements);
+        const responseMTI = isReversal ? '0430' : '0210';
+        const packedIso = this.iso8583Parser.pack(responseMTI, dataElements);
         const isoMessage = Buffer.from(packedIso.isoMessage);
         const isoLength = isoMessage.toString('hex').length / 2;
         const binLength = this.Util.getLengthBytes(isoLength);
@@ -147,14 +148,14 @@ class Interswitch {
     }
     
 
-    async handleFinalResponse(unpackedMessage: any, mappedResponse: any, socketServerInstance: any){
+    async handleFinalResponse(unpackedMessage: any, mappedResponse: any, socketServerInstance: any, isReversal: boolean = false){
         logger.info("Handling Final Response....")
 
         logger.info(`Mapped Response: ${JSON.stringify(mappedResponse)}`)
-        const data = await this.repackMappedIso(unpackedMessage, mappedResponse);
+        const data = await this.repackMappedIso(unpackedMessage, mappedResponse, isReversal);
 
         await this.writeToPOS(socketServerInstance, null, data)
-        
+
     }
 
  
@@ -368,19 +369,55 @@ class Interswitch {
             msg.setField(103, requestData[103])
             msg.setField(123, requestData[123])
 
-            let hexIsoMessage = ISOUtil.hexString(msg.pack());        
+            /**
+             * Generate Sub-ISO Message for Field 127 (Reversal-specific sub-fields)
+             */
+            let reversalSubFieldMessage: any = {};
+
+            // 127.002 - Transaction reference
+            reversalSubFieldMessage['2'] = `LTSPAY_${requestData[37]}${requestData[11]}`;
+
+            // 127.008 - Routing/additional data
+            reversalSubFieldMessage['8'] = ` ${requestData[7]}${requestData[11]}${requestData[37]}      |`;
+
+            // 127.011 - Secondary reference
+            reversalSubFieldMessage['11'] = `LTSPAY_${requestData[37]}${requestData[11].substring(0,5)}`;
+
+            // 127.013 - Currency info (17 chars fixed)
+            reversalSubFieldMessage['13'] = `      000000   566`;
+
+            // 127.020 - Date in YYYYMMDD format
+            const now = new Date();
+            const yyyymmdd = `${now.getFullYear()}${this.Util.padLeft((now.getMonth()+1).toString(),'0',2)}${this.Util.padLeft(now.getDate().toString(),'0',2)}`;
+            reversalSubFieldMessage['20'] = yyyymmdd;
+
+            // 127.022 - Metadata with RID
+            reversalSubFieldMessage['22'] = this.getRIDAsXML(requestData[100] || '666303');
+
+            // 127.027 - Flag
+            reversalSubFieldMessage['27'] = 'U';
+
+            // 127.033 - Message reason code
+            reversalSubFieldMessage['33'] = '4021';
+
+            let subIso = this.iso8583Parser.packSubFieldWithBinaryBitmap(reversalSubFieldMessage, config['127'].nestedElements);
+            logger.info(`Interswitch Reversal SubISO msg generated`);
+
+            msg.setField(127, subIso.isoMessage)
+
+            let hexIsoMessage = ISOUtil.hexString(msg.pack());
             let isoLength = hexIsoMessage.length / 2;
             let binLength = this.Util.getLengthBytes(isoLength);
-            const isoMessageBuffer = Buffer.from(ISOUtil.hex2byte(hexIsoMessage)); 
+            const isoMessageBuffer = Buffer.from(ISOUtil.hex2byte(hexIsoMessage));
             const requestISOMsg = Buffer.concat([binLength, isoMessageBuffer]);
 
-            logger.info("Sending transaction to Interswitch Postbridge: " + requestISOMsg.toString())
+            logger.info("Sending reversal transaction to Interswitch Postbridge: " + requestISOMsg.toString())
             this.writeMessage(requestISOMsg, socketClient)
 
         } catch(error){
-            logger.info("Error sending online transaction message: " + error)
+            logger.info("Error sending reversal transaction message: " + error)
         }
-        
+
     }
 
 

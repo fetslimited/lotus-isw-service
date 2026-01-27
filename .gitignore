@@ -38,9 +38,13 @@ certs/
 *.pem
 *.key
 *.crt
+*.md
 
 # Coverage
 coverage/
+.claude/settings.local.json
+/.claude
+/claude
 
 # Misc
 *.tgz

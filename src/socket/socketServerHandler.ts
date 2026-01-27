@@ -166,20 +166,46 @@ class SocketServerHandler {
                 //logger.info(`ALL Stored client data:=> ${JSON.stringify(clients)}`)
             }
                 
+        } else if(MTI == '0430'){
+            // Handle reversal response
+            logger.info(`Interswitch Reversal Response, Response code: ${this.Interswitch.getFieldValue(unpackedMessage, 39)}`)
+            const mappedResponse = this.Interswitch.mapInterswitchToNibssResponse(unpackedMessage);
+            const maskedPan = this.getMaskedPan(this.Interswitch.getFieldValue(unpackedMessage, 2))
+            const clientId = `${this.Interswitch.getFieldValue(unpackedMessage, 41)}${maskedPan}${this.Interswitch.getFieldValue(unpackedMessage, 37)}`;
+
+            logger.info(`Reversal Response Client ID :=> ${clientId} `)
+
+            if(this.clients[clientId]){
+                logger.info("Found reversal client ID data ")
+
+                const transactionDetails = this.clients[clientId].transactionDetails;
+                const unpackedMessage = this.clients[clientId].unpackedMessage;
+                const socketServerInstance = this.clients[clientId].posSocketConn;
+
+                delete this.clients[clientId]
+
+                await this.Interswitch.handleFinalResponse(unpackedMessage, mappedResponse, socketServerInstance, true)
+
+            } else {
+                this.iswClient.end()
+
+                logger.info("Could not find reversal client ID data")
+            }
+
         } else if(MTI == '0800'){
             // await updateSwitchStatus('UP')
             this.Interswitch.echoResponse(unpackedMessage, this.iswClient)
-        
+
         } else if(MTI == '0810'){
 
             const NMIC = this.Interswitch.getFieldValue(unpackedMessage, 70)
             if(NMIC == '101'){
                 this.Interswitch.keyExchangeResponse(unpackedMessage, this.iswClient)
             }
-    
+
         } else {
             // await updateSwitchStatus('UP')
-            logger.info(`Not a valid response MTI`)
+            logger.info(`Not a valid response MTI: ${MTI}`)
         }
     }
 
