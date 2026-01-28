@@ -415,8 +415,9 @@ class Interswitch {
             reversalSubFieldMessage['11'] = `0200:${stan}:${datetime}:${refNumber}`;
             logger.info(`[REVERSAL-F127] Set 127.011: "${reversalSubFieldMessage['11']}" (${reversalSubFieldMessage['11'].length} chars)`);
 
-            // 127.013 - Fixed 17 chars exactly, "834" LEFT-aligned with trailing spaces
-            reversalSubFieldMessage['13'] = '834              ';  // "834" + 14 spaces = 17 chars
+            // 127.013 - Currency code (FIXED 17 chars, left-aligned with trailing spaces)
+            const currencyCode = (requestData[49] || '566').toString();
+            reversalSubFieldMessage['13'] = currencyCode.padEnd(17, ' ');
             logger.info(`[REVERSAL-F127] Set 127.013: "${reversalSubFieldMessage['13']}" (${reversalSubFieldMessage['13'].length} chars)`);
 
             // 127.020 - Date in YYYYMMDD format (FIXED 8 chars, numeric)
