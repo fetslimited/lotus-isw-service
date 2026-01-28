@@ -168,7 +168,7 @@ class Interswitch {
         try{
             let requestData: any = {};
             Object.assign(requestData, unpackedMessage.dataElements);
-            let subFieldMessage = { ...baseSubFieldMessage };  // Create copy for uniformity
+            let subFieldMessage = baseSubFieldMessage;
 
             let date = new Date();
             const mmdd = this.Util.padLeft((date.getMonth()+1).toString(),'0',2) + this.Util.padLeft(date.getDate().toString(),'0',2)
@@ -289,7 +289,7 @@ class Interswitch {
         try{
             let requestData: any = {};
             Object.assign(requestData, unpackedMessage.dataElements);
-            let subFieldMessage = { ...baseSubFieldMessage };  // Create copy for uniformity
+            let reversalSubFieldMessage = baseSubFieldMessage;
 
             let date = new Date();
             const mmdd = this.Util.padLeft((date.getMonth()+1).toString(),'0',2) + this.Util.padLeft(date.getDate().toString(),'0',2)
@@ -381,7 +381,7 @@ class Interswitch {
              */
             logger.info(`[REVERSAL-F127] ====== Building Field 127 for Reversal (v2) ======`);
 
-            let reversalSubFieldMessage = { ...baseSubFieldMessage };  // Create copy for uniformity
+            // let reversalSubFieldMessage = baseSubFieldMessage;
 
             // Get current date/time components
             const now = new Date();
