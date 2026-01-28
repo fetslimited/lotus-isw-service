@@ -124,17 +124,26 @@ class Main {
 
         let secondaryBitmap = (secondaryBitmapValue == '1' ? true : false);
 
+        // Ensure bitmap is exactly 64 bits (pad with zeros if needed)
+        while (binaryBitmap.length < 64) {
+            binaryBitmap += '0';
+        }
+
         let hexadecimalBitmap = HexBin.binaryCharactersToHex(binaryBitmap);
 
-        let binBitmap = Buffer.from(hexadecimalBitmap,'hex').toString('binary');
+        // Use Buffer to properly handle binary data without string encoding issues
+        let bitmapBuffer = Buffer.from(hexadecimalBitmap, 'hex');
+        let dataBuffer = Buffer.from(dataElementPart, 'latin1');
 
-        let isoMessage = `${binBitmap}${dataElementPart}`;
+        // Concatenate bitmap and data as a single buffer
+        let isoMessageBytes = Buffer.concat([bitmapBuffer, dataBuffer]);
 
-        let isoMessageBytes = Buffer.concat([Buffer.from(binBitmap,'binary'),Buffer.from(dataElementPart,'utf8')]);
+        // Create string representation for compatibility (using latin1 to preserve byte values 0-255)
+        let isoMessage = isoMessageBytes.toString('latin1');
 
         response.binaryBitmap = binaryBitmap;
         response.hexadecimalBitmap = hexadecimalBitmap;
-        response.binBitmap = binBitmap;
+        response.binBitmap = bitmapBuffer.toString('latin1');
         response.secondaryBitmap = secondaryBitmap;
         response.dataElementPart = dataElementPart;
         response.isoMessage = isoMessage;
