@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-inferrable-types */
+/* eslint-disable no-var */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable prefer-const */
+/* eslint-disable @typescript-eslint/restrict-template-expressions */
 /* eslint-disable @typescript-eslint/no-misused-promises */
 
 /* eslint-disable max-len */
@@ -402,7 +407,7 @@ class Interswitch {
 
             // 127.008 - Routing/additional data (LLLVAR, max 999 chars)
             const rrn = (requestData[37] || '000000000000').toString();
-            reversalSubFieldMessage['8'] = ` ${datetime}${stan}${rrn}      |`;
+            reversalSubFieldMessage['8'] = `${datetime}${stan}${rrn}      |`;
             logger.info(`[REVERSAL-F127] Set 127.008: "${reversalSubFieldMessage['8']}" (${reversalSubFieldMessage['8'].length} chars)`);
 
             // 127.011 - Original transaction reference (LLVAR, max 32 chars)
