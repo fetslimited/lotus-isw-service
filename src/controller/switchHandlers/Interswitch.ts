@@ -168,7 +168,7 @@ class Interswitch {
         try{
             let requestData: any = {};
             Object.assign(requestData, unpackedMessage.dataElements);
-            let subFieldMessage = baseSubFieldMessage;
+            let subFieldMessage = { ...baseSubFieldMessage };  // Create copy for uniformity
 
             let date = new Date();
             const mmdd = this.Util.padLeft((date.getMonth()+1).toString(),'0',2) + this.Util.padLeft(date.getDate().toString(),'0',2)
@@ -289,7 +289,7 @@ class Interswitch {
         try{
             let requestData: any = {};
             Object.assign(requestData, unpackedMessage.dataElements);
-            let subFieldMessage = baseSubFieldMessage;
+            let subFieldMessage = { ...baseSubFieldMessage };  // Create copy for uniformity
 
             let date = new Date();
             const mmdd = this.Util.padLeft((date.getMonth()+1).toString(),'0',2) + this.Util.padLeft(date.getDate().toString(),'0',2)
@@ -381,7 +381,7 @@ class Interswitch {
              */
             logger.info(`[REVERSAL-F127] ====== Building Field 127 for Reversal (v2) ======`);
 
-            let reversalSubFieldMessage: any = {};
+            let reversalSubFieldMessage = { ...baseSubFieldMessage };  // Create copy for uniformity
 
             // Get current date/time components
             const now = new Date();
@@ -407,7 +407,7 @@ class Interswitch {
 
             // 127.008 - Routing/additional data (LLLVAR, max 999 chars)
             const rrn = (requestData[37] || '000000000000').toString();
-            reversalSubFieldMessage['8'] = `${datetime}${stan}${rrn}      |`;
+            reversalSubFieldMessage['8'] = `${datetime}${stan}${rrn}`;
             logger.info(`[REVERSAL-F127] Set 127.008: "${reversalSubFieldMessage['8']}" (${reversalSubFieldMessage['8'].length} chars)`);
 
             // 127.011 - Original transaction reference (LLVAR, max 32 chars)
