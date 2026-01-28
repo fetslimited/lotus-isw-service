@@ -263,12 +263,12 @@ class Interswitch {
             let subIso = this.iso8583Parser.packSubFieldWithBinaryBitmap(subFieldMessage, config['127'].nestedElements);
             //logger.info(`Interswitch SubISO msg: ${subIso.isoMessage}`);
 
-            msg.setField(127, subIso.isoMessage)
+            msg.setField(127, subIso.isoMessageBytes.toString('hex'))
 
-            let hexIsoMessage = ISOUtil.hexString(msg.pack());        
+            let hexIsoMessage = ISOUtil.hexString(msg.pack());
             let isoLength = hexIsoMessage.length / 2;
             let binLength = this.Util.getLengthBytes(isoLength);
-            const isoMessageBuffer = Buffer.from(ISOUtil.hex2byte(hexIsoMessage)); 
+            const isoMessageBuffer = Buffer.from(ISOUtil.hex2byte(hexIsoMessage));
             const requestISOMsg = Buffer.concat([binLength, isoMessageBuffer]);
 
             logger.info("Sending transaction to Interswitch Postbridge: " + requestISOMsg.toString())
@@ -434,7 +434,7 @@ class Interswitch {
             logger.info(`[REVERSAL-F127] Packed content preview: ${subIso.isoMessage?.substring(0, 100)}...`);
             logger.info(`[REVERSAL-F127] ====== Field 127 Build Complete ======`);
 
-            msg.setField(127, subIso.isoMessage)
+            msg.setField(127, subIso.isoMessageBytes.toString('hex'))
 
             let hexIsoMessage = ISOUtil.hexString(msg.pack());
             let isoLength = hexIsoMessage.length / 2;
