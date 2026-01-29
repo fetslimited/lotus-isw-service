@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
 /* eslint-disable @typescript-eslint/no-inferrable-types */
 /* eslint-disable no-var */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
@@ -14,42 +15,43 @@ import logger from '../../shared/Logger';
 import handleCardTransactions from '../../controller/Transaction/handleCardTransactions';
 import deploySocketService from '../../socket/deploySocketService';
 import cISO8583 from '../../ciso8583/CISO'
-import SocketClient from '../../socket/socketClient_ISW';
-import handleSettlement from '../Transaction/handleSettlement'
-import handleNotification from '../Transaction/handleNotification'
-import { getNibssResponseMessageFromCode } from '../../utils/responseUtil'
-import handleVas from '../Transaction/handleVas'
+// import SocketClient from '../../socket/socketClient_ISW';
+// import handleSettlement from '../Transaction/handleSettlement'
+// import handleNotification from '../Transaction/handleNotification'
+// import { getNibssResponseMessageFromCode } from '../../utils/responseUtil'
+// import handleVas from '../Transaction/handleVas'
 import Util from '../../shared/Util';
-import ITerminal from '../../database/interface/i_terminal'
-import { updateInterswitchConfig, getInterswitchConfig } from '../../configs/interswitchConfig';
-import {I_Interswitch} from '../../database/interface/i_interswitch'
+// import ITerminal from '../../database/interface/i_terminal'
+// import { updateInterswitchConfig, getInterswitchConfig } from '../../configs/interswitchConfig';
+// import {I_Interswitch} from '../../database/interface/i_interswitch'
 import Redis from '../../database/redis/Redis';
-import net from 'net'
-import moment from 'moment';
+// import net from 'net'
+// import moment from 'moment';
 
 // Import neccessary config files
 const config = require('../../ciso8583/engine/interswitch-dataelement-config.json');
-const baseconfig = require('../../ciso8583/engine/dataelement-config.json');
+// const baseconfig = require('../../ciso8583/engine/dataelement-config.json');
 const baseMessage = require('../../ciso8583/engine/dataelements.json');
 const baseSubFieldMessage = require('../../ciso8583/engine/subField-data-elements.json');
-const ISO8583 = require('iso8583-js');
+// const ISO8583 = require('iso8583-js');
 
 import { MyPackager } from '../../ciso8583/MyPackager'
-import { response } from 'express';
-import { AnyARecord } from 'dns';
-import TerminalPoolModel from '../../database/model/TerminalPoolModel';
-import TerminalPoolService, { SwitchName } from '../../services/TerminalPoolService';
-import { sub } from 'date-fns';
+// import { response } from 'express';
+// import { AnyARecord } from 'dns';
+// import TerminalPoolModel from '../../database/model/TerminalPoolModel';
+// import TerminalPoolService, { SwitchName } from '../../services/TerminalPoolService';
+// import { sub } from 'date-fns';
+
 const jsPos = require('jspos');
-const { ISOUtil, ISOMsg } = jsPos;
+const { ISOUtil } = jsPos;
 
-let isoInstance = new ISO8583();
+// let isoInstance = new ISO8583();
 
 
-const iso8583 = require('iso_8583');
-const customIsoFormat = require('../../ciso8583/engine/customIsoFormat.json');
+// const iso8583 = require('iso_8583');
+// const customIsoFormat = require('../../ciso8583/engine/customIsoFormat.json');
 
-let globalSocketClient: any = null
+// let globalSocketClient: any = null
 class Interswitch {
 
     transactionDetails: any;
@@ -119,7 +121,7 @@ class Interswitch {
 
         const encPlainPin = transactionDetails.customerRef;
 
-        let isoMSG;
+        // let isoMSG;
 
         unpackedMessage.transactingTerminalId = transactionDetails.transactingTerminalId;
         logger.info(`ONLINE TRANSACTION (LOG).............`)
@@ -138,7 +140,7 @@ class Interswitch {
 
         const encPlainPin = transactionDetails.customerRef;
 
-        let isoMSG;
+        // let isoMSG;
             
         let pinBlock = '0000';
         if(encPlainPin !== null){
@@ -168,7 +170,7 @@ class Interswitch {
         try{
             let requestData: any = {};
             Object.assign(requestData, unpackedMessage.dataElements);
-            let subFieldMessage = JSON.parse(JSON.stringify(baseSubFieldMessage));
+            let subFieldMessage = baseSubFieldMessage;
 
             let date = new Date();
             const mmdd = this.Util.padLeft((date.getMonth()+1).toString(),'0',2) + this.Util.padLeft(date.getDate().toString(),'0',2)
@@ -289,7 +291,7 @@ class Interswitch {
         try{
             let requestData: any = {};
             Object.assign(requestData, unpackedMessage.dataElements);
-            let reversalSubFieldMessage = JSON.parse(JSON.stringify(baseSubFieldMessage));
+            // let reversalSubFieldMessage = JSON.parse(JSON.stringify(baseSubFieldMessage));
 
             let date = new Date();
             const mmdd = this.Util.padLeft((date.getMonth()+1).toString(),'0',2) + this.Util.padLeft(date.getDate().toString(),'0',2)
@@ -382,6 +384,7 @@ class Interswitch {
             logger.info(`[REVERSAL-F127] ====== Building Field 127 for Reversal (v2) ======`);
 
             // let reversalSubFieldMessage = baseSubFieldMessage;
+            let reversalSubFieldMessage: any = {};
 
             // Get current date/time components
             const now = new Date();
@@ -427,10 +430,6 @@ class Interswitch {
             // 127.022 - Original RID in XML format (LLLLLVAR)
             reversalSubFieldMessage['22'] = this.getRIDAsXML(requestData[100] || '666303');
             logger.info(`[REVERSAL-F127] Set 127.022: "${reversalSubFieldMessage['22']}" (${reversalSubFieldMessage['22'].length} chars)`);
-
-            // Remove field 127.003 - not required for reversals
-            delete reversalSubFieldMessage['3'];
-            logger.info(`[REVERSAL-F127] Deleted field 127.003 (not required for reversals)`);
 
             // Log all sub-fields before packing
             logger.info(`[REVERSAL-F127] All sub-fields set: ${JSON.stringify(Object.keys(reversalSubFieldMessage))}`);
@@ -742,7 +741,7 @@ class Interswitch {
     }
 
     async getKcv(data: string){
-        const ZMK = Buffer.from(this.ZMK).toString('hex');
+        // const ZMK = Buffer.from(this.ZMK).toString('hex');
         //logger.info(`Interswitch: ZMK: ${ZMK}`)
         const encrypt3des = this.Util.des3Encrypt(data, this.ZMK);
         return encrypt3des.substr(0,6);
@@ -776,7 +775,7 @@ class Interswitch {
             
             const clearPWK = await this.getClearPWK();
             const bufferClearPWK = Buffer.from(clearPWK, 'hex');
-            const bufferPinblock = Buffer.from(pinBlock, 'hex'); 
+            // const bufferPinblock = Buffer.from(pinBlock, 'hex'); 
             const encryptedPinBlock = this.Util.des3EncryptNoPadding(pinBlockHex.toUpperCase(), bufferClearPWK)
             
             //logger.info('Interswitch: Encrypted PIN Block: ' + encryptedPinBlock)
