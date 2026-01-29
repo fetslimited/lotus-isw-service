@@ -168,7 +168,7 @@ class Interswitch {
         try{
             let requestData: any = {};
             Object.assign(requestData, unpackedMessage.dataElements);
-            let subFieldMessage = baseSubFieldMessage;
+            let subFieldMessage = JSON.parse(JSON.stringify(baseSubFieldMessage));
 
             let date = new Date();
             const mmdd = this.Util.padLeft((date.getMonth()+1).toString(),'0',2) + this.Util.padLeft(date.getDate().toString(),'0',2)
@@ -289,7 +289,7 @@ class Interswitch {
         try{
             let requestData: any = {};
             Object.assign(requestData, unpackedMessage.dataElements);
-            let reversalSubFieldMessage = baseSubFieldMessage;
+            let reversalSubFieldMessage = JSON.parse(JSON.stringify(baseSubFieldMessage));
 
             let date = new Date();
             const mmdd = this.Util.padLeft((date.getMonth()+1).toString(),'0',2) + this.Util.padLeft(date.getDate().toString(),'0',2)
@@ -427,6 +427,10 @@ class Interswitch {
             // 127.022 - Original RID in XML format (LLLLLVAR)
             reversalSubFieldMessage['22'] = this.getRIDAsXML(requestData[100] || '666303');
             logger.info(`[REVERSAL-F127] Set 127.022: "${reversalSubFieldMessage['22']}" (${reversalSubFieldMessage['22'].length} chars)`);
+
+            // Remove field 127.003 - not required for reversals
+            delete reversalSubFieldMessage['3'];
+            logger.info(`[REVERSAL-F127] Deleted field 127.003 (not required for reversals)`);
 
             // Log all sub-fields before packing
             logger.info(`[REVERSAL-F127] All sub-fields set: ${JSON.stringify(Object.keys(reversalSubFieldMessage))}`);
