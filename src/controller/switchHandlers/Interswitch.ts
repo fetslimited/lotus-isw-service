@@ -472,12 +472,24 @@ class Interswitch {
             logger.info(`[REVERSAL] Hex ISO message: ${hexIsoMessage}`)
 
             let isoLength = hexIsoMessage.length / 2;
-            let binLength = this.Util.getLengthBytes(isoLength);
-            const isoMessageBuffer = Buffer.from(ISOUtil.hex2byte(hexIsoMessage));
-            const requestISOMsg = Buffer.concat([binLength, isoMessageBuffer]);
+            logger.info(`[REVERSAL] ISO message length (bytes): ${isoLength}`)
 
-            logger.info(`[REVERSAL] Final message with length header: ${requestISOMsg.toString()}`)
+            let binLength = this.Util.getLengthBytes(isoLength);
+            logger.info(`[REVERSAL] binLength - Buffer: ${binLength.toString('hex')}`)
+            logger.info(`[REVERSAL] binLength - Length: ${binLength.length} bytes`)
+
+            const isoMessageBuffer = Buffer.from(ISOUtil.hex2byte(hexIsoMessage));
+            logger.info(`[REVERSAL] isoMessageBuffer - Length: ${isoMessageBuffer.length} bytes`)
+            logger.info(`[REVERSAL] isoMessageBuffer - Hex: ${isoMessageBuffer.toString('hex')}`)
+            logger.info(`[REVERSAL] isoMessageBuffer - String: ${isoMessageBuffer.toString()}`)
+
+            const requestISOMsg = Buffer.concat([binLength, isoMessageBuffer]);
+            logger.info(`[REVERSAL] requestISOMsg - Total Length: ${requestISOMsg.length} bytes (binLength: ${binLength.length} + isoMessage: ${isoMessageBuffer.length})`)
+            logger.info(`[REVERSAL] requestISOMsg - Hex: ${requestISOMsg.toString('hex')}`)
+            logger.info(`[REVERSAL] requestISOMsg - String: ${requestISOMsg.toString()}`)
+            logger.info(`[REVERSAL] requestISOMsg - Buffer: ${JSON.stringify(Array.from(requestISOMsg.slice(0, 50)))}...`)
             logger.info(`[REVERSAL] ====== Sending Reversal to Interswitch ======`)
+
             this.writeMessage(requestISOMsg, socketClient)
 
         } catch(error){
