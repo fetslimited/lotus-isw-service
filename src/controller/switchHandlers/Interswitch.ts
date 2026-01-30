@@ -27,6 +27,7 @@ const config = require('../../ciso8583/engine/interswitch-dataelement-config.jso
 const baseconfig = require('../../ciso8583/engine/dataelement-config.json');
 const baseMessage = require('../../ciso8583/engine/dataelements.json');
 const baseSubFieldMessage = require('../../ciso8583/engine/subField-data-elements.json');
+const reversalSubFieldMessage = require('../../ciso8583/engine/reversalSubField-data-elements.json');
 const ISO8583 = require('iso8583-js');
 
 import { MyPackager } from '../../ciso8583/MyPackager'
@@ -142,11 +143,10 @@ class Interswitch {
         
         // Pass transactingTerminalId from transactionDetails to unpackedMessage
         unpackedMessage.transactingTerminalId = transactionDetails.transactingTerminalId;
-        
+
         await this.sendReversalTransaction(unpackedMessage, pinBlock, socketClient);
 
     }
-    
 
     async handleFinalResponse(unpackedMessage: any, mappedResponse: any, socketServerInstance: any, isReversal: boolean = false){
         logger.info("Handling Final Response....")
@@ -157,7 +157,6 @@ class Interswitch {
         await this.writeToPOS(socketServerInstance, null, data)
 
     }
-
  
     async sendOnlineTransaction(unpackedMessage: any, plainPinBlock: string, socketClient: any){
         try{
@@ -371,12 +370,9 @@ class Interswitch {
 
             /**
              * Generate Sub-ISO Message for Field 127 (Reversal-specific sub-fields)
-             * Format based on Interswitch specification
-             * BUILD VERSION: 2026-01-27-v2
+             * Similar to sendOnlineTransaction approach using base file
              */
-            logger.info(`[REVERSAL-F127] ====== Building Field 127 for Reversal (v2) ======`);
-
-            let reversalSubFieldMessage: any = {};
+            let reversalSubField = reversalSubFieldMessage;
 
             // Get current date/time components
             const now = new Date();
@@ -392,47 +388,27 @@ class Interswitch {
 
             // Ensure datetime is 10 chars (MMDDHHMMSS)
             const datetime = (requestData[7] || '0000000000').toString().padStart(10, '0');
-
-            logger.info(`[REVERSAL-F127] Input values - STAN: ${stan}, DateTime: ${datetime}, RefNum: ${refNumber}`);
-
-            // 127.002 - Reversal transaction reference (LLVAR, max 32 chars)
-            // Format: MTI:STAN:DATETIME:REF = 4+1+6+1+10+1+9 = 32 chars
-            reversalSubFieldMessage['2'] = `0420:${stan}:${datetime}:${refNumber}`;
-            logger.info(`[REVERSAL-F127] Set 127.002: "${reversalSubFieldMessage['2']}" (${reversalSubFieldMessage['2'].length} chars)`);
-
-            // 127.008 - Routing/additional data (LLLVAR, max 999 chars)
             const rrn = (requestData[37] || '000000000000').toString();
-            reversalSubFieldMessage['8'] = ` ${datetime}${stan}${rrn}      |`;
-            logger.info(`[REVERSAL-F127] Set 127.008: "${reversalSubFieldMessage['8']}" (${reversalSubFieldMessage['8'].length} chars)`);
 
-            // 127.011 - Original transaction reference (LLVAR, max 32 chars)
-            // Format: ORIG_MTI:STAN:DATETIME:REF = 4+1+6+1+10+1+9 = 32 chars
-            reversalSubFieldMessage['11'] = `0200:${stan}:${datetime}:${refNumber}`;
-            logger.info(`[REVERSAL-F127] Set 127.011: "${reversalSubFieldMessage['11']}" (${reversalSubFieldMessage['11'].length} chars)`);
+            // 127.002 - Reversal transaction reference
+            reversalSubField['2'] = `0420:${stan}:${datetime}:${refNumber}`;
 
-            // 127.013 - Fixed 17 chars exactly, "834" right-aligned with spaces
-            reversalSubFieldMessage['13'] = '              834';  // 14 spaces + "834" = 17 chars
-            logger.info(`[REVERSAL-F127] Set 127.013: "${reversalSubFieldMessage['13']}" (${reversalSubFieldMessage['13'].length} chars)`);
+            // 127.008 - Routing/additional data
+            reversalSubField['8'] = `${datetime}${stan}${rrn}`;
 
-            // 127.020 - Date in YYYYMMDD format (FIXED 8 chars, numeric)
-            reversalSubFieldMessage['20'] = `${year}${month}${day}`;
-            logger.info(`[REVERSAL-F127] Set 127.020: "${reversalSubFieldMessage['20']}" (${reversalSubFieldMessage['20'].length} chars)`);
+            // 127.011 - Original transaction reference
+            reversalSubField['11'] = `0200:${stan}:${datetime}:${refNumber}`;
 
-            // 127.022 - Original RID in XML format (LLLLLVAR)
-            reversalSubFieldMessage['22'] = this.getRIDAsXML(requestData[100] || '666303');
-            logger.info(`[REVERSAL-F127] Set 127.022: "${reversalSubFieldMessage['22']}" (${reversalSubFieldMessage['22'].length} chars)`);
+            // 127.013 - Currency code (566 for NGN)
+            reversalSubField['13'] = (requestData[49] || '566').toString().padEnd(17, ' ');
 
-            // Log all sub-fields before packing
-            logger.info(`[REVERSAL-F127] All sub-fields set: ${JSON.stringify(Object.keys(reversalSubFieldMessage))}`);
+            // 127.020 - Date in YYYYMMDD format
+            reversalSubField['20'] = `${year}${month}${day}`;
 
-            // Check if config exists
-            logger.info(`[REVERSAL-F127] Config 127 nestedElements exists: ${!!config['127']?.nestedElements}`);
+            // 127.022 - Original RID in XML format
+            reversalSubField['22'] = this.getRIDAsXML(requestData[100] || '666303');
 
-            let subIso = this.iso8583Parser.packSubFieldWithBinaryBitmap(reversalSubFieldMessage, config['127'].nestedElements);
-
-            logger.info(`[REVERSAL-F127] Packed result - length: ${subIso.isoMessage?.length}, bitmap: ${subIso.binaryBitmap?.substring(0,16)}`);
-            logger.info(`[REVERSAL-F127] Packed content preview: ${subIso.isoMessage?.substring(0, 100)}...`);
-            logger.info(`[REVERSAL-F127] ====== Field 127 Build Complete ======`);
+            let subIso = this.iso8583Parser.packSubFieldWithBinaryBitmap(reversalSubField, config['127'].nestedElements);
 
             msg.setField(127, subIso.isoMessage)
 
@@ -450,7 +426,6 @@ class Interswitch {
         }
 
     }
-
 
     private getRID(terminalId: string){
         if (!terminalId) return "666303";
