@@ -281,18 +281,26 @@ class Interswitch {
 
     async sendReversalTransaction(unpackedMessage: any, plainPinBlock: string, socketClient: any){
         try{
+            logger.info(`[REVERSAL] ====== Starting Reversal Transaction ======`);
+
             let requestData: any = {};
             Object.assign(requestData, unpackedMessage.dataElements);
             let subFieldMessage = baseSubFieldMessage;
+
+            logger.info(`[REVERSAL] Original requestData fields - F2: ${requestData['2']}, F3: ${requestData['3']}, F4: ${requestData['4']}`);
+            logger.info(`[REVERSAL] Original requestData fields - F7: ${requestData['7']}, F11: ${requestData['11']}, F37: ${requestData['37']}`);
+            logger.info(`[REVERSAL] Original requestData fields - F49: ${requestData['49']}`);
 
             let date = new Date();
             const mmdd = this.Util.padLeft((date.getMonth()+1).toString(),'0',2) + this.Util.padLeft(date.getDate().toString(),'0',2)
 
             const pinBlock = await this.getEncryptedPinBlock(plainPinBlock, unpackedMessage.dataElements['2']);
-            //logger.info(`Interswitch: PINBLOCK ${pinBlock}`)
+            logger.info(`[REVERSAL] Encrypted PIN block generated`);
+
             // For CashOut Interswitch
             const terminalId = unpackedMessage.transactingTerminalId;
-            console.log(`Terminal ID for Reversal: ${terminalId}`)
+            logger.info(`[REVERSAL] Terminal ID: ${terminalId}`);
+
             requestData['41'] = terminalId;
             requestData['42'] = `2LTS1125SL00001`;
             requestData['3'] = requestData['3'] ? `50${requestData['3'].substring(2,6)}` : '500000';
@@ -313,10 +321,17 @@ class Interswitch {
             requestData['33'] = "111111";
             requestData['43'] = this.getField43();
 
+            logger.info(`[REVERSAL] Updated requestData - F3: ${requestData['3']}, F41: ${requestData['41']}, F42: ${requestData['42']}`);
+            logger.info(`[REVERSAL] Updated requestData - F59: ${requestData['59']}, F15: ${requestData['15']}`)
+
             requestData['90'] = `0200${requestData[11]}${requestData[7]}${this.Util.padLeft(requestData[32], '0', 11)}${this.Util.padLeft(requestData[11], '0', 11)}`
+            logger.info(`[REVERSAL] Field 90 set: ${requestData['90']}`)
+
             requestData['100'] = this.getRID(terminalId)
+            logger.info(`[REVERSAL] Field 100 (RID) for Terminal ${terminalId}: ${requestData['100']}`)
 
             requestData['103'] = this.getAccountNumber(terminalId)
+            logger.info(`[REVERSAL] Field 103 (Account): ${requestData['103']}`)
 
             // Account to be settled (After the settlement fee is deducted)
             requestData['128'] = null;
@@ -326,11 +341,9 @@ class Interswitch {
             if (!xmlICC){
                 xmlICC = await this.Util.generateStaticICCData(unpackedMessage);
             }
+            logger.info(`[REVERSAL] xmlICC generated: ${xmlICC ? 'Yes' : 'No'}, length: ${xmlICC?.length || 0}`)
 
-            //logger.info("Interswitch: Generated ICC Data XML" + xmlICC);
-            
-            //logger.info("Interswitch: ICC Data" + xmlICC);
-            logger.info(`Configured RID for Terminal ID ${unpackedMessage.dataElements['41']} is ${requestData[100]}`)
+            logger.info(`[REVERSAL] Configured RID for Terminal ID ${unpackedMessage.dataElements['41']} is ${requestData[100]}`)
 
             let msg = this.myPackager.createISOMsg();
             msg.setMTI('0420');
@@ -372,7 +385,10 @@ class Interswitch {
              * Generate Sub-ISO Message for Field 127 (Reversal-specific sub-fields)
              * Similar to sendOnlineTransaction approach using base file
              */
+            logger.info(`[REVERSAL-F127] ====== Building Field 127 for Reversal ======`);
+
             let reversalSubField = reversalSubFieldMessage;
+            logger.info(`[REVERSAL-F127] Base reversalSubFieldMessage keys: ${JSON.stringify(Object.keys(reversalSubField))}`);
 
             // Get current date/time components
             const now = new Date();
@@ -390,35 +406,78 @@ class Interswitch {
             const datetime = (requestData[7] || '0000000000').toString().padStart(10, '0');
             const rrn = (requestData[37] || '000000000000').toString();
 
+            logger.info(`[REVERSAL-F127] Variables - year: ${year}, month: ${month}, day: ${day}`);
+            logger.info(`[REVERSAL-F127] Variables - refNumber: ${refNumber}`);
+            logger.info(`[REVERSAL-F127] Variables - stan: ${stan} (from requestData[11]: ${requestData[11]})`);
+            logger.info(`[REVERSAL-F127] Variables - datetime: ${datetime} (from requestData[7]: ${requestData[7]})`);
+            logger.info(`[REVERSAL-F127] Variables - rrn: ${rrn} (from requestData[37]: ${requestData[37]})`);
+            logger.info(`[REVERSAL-F127] Variables - requestData[49] (Currency): ${requestData[49]}`);
+            logger.info(`[REVERSAL-F127] Variables - requestData[100] (RID): ${requestData[100]}`);
+
             // 127.002 - Reversal transaction reference
-            reversalSubField['2'] = `0420:${stan}:${datetime}:${refNumber}`;
+            const field002Value = `0420:${stan}:${datetime}:${refNumber}`;
+            reversalSubField['2'] = field002Value;
+            logger.info(`[REVERSAL-F127] Field 127.002 - Formula: "0420:${stan}:${datetime}:${refNumber}"`);
+            logger.info(`[REVERSAL-F127] Field 127.002 - Value: "${field002Value}" (length: ${field002Value.length})`);
 
             // 127.008 - Routing/additional data
-            reversalSubField['8'] = `${datetime}${stan}${rrn}`;
+            const field008Value = `${datetime}${stan}${rrn}`;
+            reversalSubField['8'] = field008Value;
+            logger.info(`[REVERSAL-F127] Field 127.008 - Formula: "${datetime}${stan}${rrn}"`);
+            logger.info(`[REVERSAL-F127] Field 127.008 - Value: "${field008Value}" (length: ${field008Value.length})`);
 
             // 127.011 - Original transaction reference
-            reversalSubField['11'] = `0200:${stan}:${datetime}:${refNumber}`;
+            const field011Value = `0200:${stan}:${datetime}:${refNumber}`;
+            reversalSubField['11'] = field011Value;
+            logger.info(`[REVERSAL-F127] Field 127.011 - Formula: "0200:${stan}:${datetime}:${refNumber}"`);
+            logger.info(`[REVERSAL-F127] Field 127.011 - Value: "${field011Value}" (length: ${field011Value.length})`);
 
             // 127.013 - Currency code (566 for NGN)
-            reversalSubField['13'] = (requestData[49] || '566').toString().padEnd(17, ' ');
+            const field013Value = (requestData[49] || '566').toString().padEnd(17, ' ');
+            reversalSubField['13'] = field013Value;
+            logger.info(`[REVERSAL-F127] Field 127.013 - Input: "${requestData[49] || '566'}"`);
+            logger.info(`[REVERSAL-F127] Field 127.013 - Value: "${field013Value}" (length: ${field013Value.length})`);
 
             // 127.020 - Date in YYYYMMDD format
-            reversalSubField['20'] = `${year}${month}${day}`;
+            const field020Value = `${year}${month}${day}`;
+            reversalSubField['20'] = field020Value;
+            logger.info(`[REVERSAL-F127] Field 127.020 - Formula: "${year}${month}${day}"`);
+            logger.info(`[REVERSAL-F127] Field 127.020 - Value: "${field020Value}" (length: ${field020Value.length})`);
 
             // 127.022 - Original RID in XML format
-            reversalSubField['22'] = this.getRIDAsXML(requestData[100] || '666303');
+            const field022Value = this.getRIDAsXML(requestData[100] || '666303');
+            reversalSubField['22'] = field022Value;
+            logger.info(`[REVERSAL-F127] Field 127.022 - Input RID: "${requestData[100] || '666303'}"`);
+            logger.info(`[REVERSAL-F127] Field 127.022 - Value: "${field022Value}" (length: ${field022Value.length})`);
+
+            logger.info(`[REVERSAL-F127] All sub-fields set: ${JSON.stringify(Object.keys(reversalSubField))}`);
+            logger.info(`[REVERSAL-F127] Complete reversalSubField object: ${JSON.stringify(reversalSubField, null, 2)}`);
+            logger.info(`[REVERSAL-F127] Calling packSubFieldWithBinaryBitmap with config['127'].nestedElements...`);
+            logger.info(`[REVERSAL-F127] Config nestedElements available: ${!!config['127']?.nestedElements}`);
 
             let subIso = this.iso8583Parser.packSubFieldWithBinaryBitmap(reversalSubField, config['127'].nestedElements);
 
-            msg.setField(127, subIso.isoMessage)
+            logger.info(`[REVERSAL-F127] Packed result - isoMessage length: ${subIso.isoMessage?.length}`);
+            logger.info(`[REVERSAL-F127] Packed result - binary bitmap: ${subIso.binaryBitmap}`);
+            logger.info(`[REVERSAL-F127] Packed result - isoMessage preview: ${subIso.isoMessage?.substring(0, 200)}`);
+            logger.info(`[REVERSAL-F127] Packed result - isoMessage (full): ${subIso.isoMessage}`);
+            logger.info(`[REVERSAL-F127] ====== Field 127 Build Complete ======`);
 
+            msg.setField(127, subIso.isoMessage)
+            logger.info(`[REVERSAL] Set field 127 to message`)
+
+            logger.info(`[REVERSAL] Packing full ISO message...`)
             let hexIsoMessage = ISOUtil.hexString(msg.pack());
+            logger.info(`[REVERSAL] Hex ISO message length: ${hexIsoMessage.length / 2} bytes`)
+            logger.info(`[REVERSAL] Hex ISO message: ${hexIsoMessage}`)
+
             let isoLength = hexIsoMessage.length / 2;
             let binLength = this.Util.getLengthBytes(isoLength);
             const isoMessageBuffer = Buffer.from(ISOUtil.hex2byte(hexIsoMessage));
             const requestISOMsg = Buffer.concat([binLength, isoMessageBuffer]);
 
-            logger.info("Sending reversal transaction to Interswitch Postbridge: " + requestISOMsg.toString())
+            logger.info(`[REVERSAL] Final message with length header: ${requestISOMsg.toString()}`)
+            logger.info(`[REVERSAL] ====== Sending Reversal to Interswitch ======`)
             this.writeMessage(requestISOMsg, socketClient)
 
         } catch(error){
