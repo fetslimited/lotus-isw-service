@@ -1,9 +1,3 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
-/* eslint-disable @typescript-eslint/no-inferrable-types */
-/* eslint-disable no-var */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable prefer-const */
-/* eslint-disable @typescript-eslint/restrict-template-expressions */
 /* eslint-disable @typescript-eslint/no-misused-promises */
 
 /* eslint-disable max-len */
@@ -15,43 +9,42 @@ import logger from '../../shared/Logger';
 import handleCardTransactions from '../../controller/Transaction/handleCardTransactions';
 import deploySocketService from '../../socket/deploySocketService';
 import cISO8583 from '../../ciso8583/CISO'
-// import SocketClient from '../../socket/socketClient_ISW';
-// import handleSettlement from '../Transaction/handleSettlement'
-// import handleNotification from '../Transaction/handleNotification'
-// import { getNibssResponseMessageFromCode } from '../../utils/responseUtil'
-// import handleVas from '../Transaction/handleVas'
+import SocketClient from '../../socket/socketClient_ISW';
+import handleSettlement from '../Transaction/handleSettlement'
+import handleNotification from '../Transaction/handleNotification'
+import { getNibssResponseMessageFromCode } from '../../utils/responseUtil'
+import handleVas from '../Transaction/handleVas'
 import Util from '../../shared/Util';
-// import ITerminal from '../../database/interface/i_terminal'
-// import { updateInterswitchConfig, getInterswitchConfig } from '../../configs/interswitchConfig';
-// import {I_Interswitch} from '../../database/interface/i_interswitch'
+import ITerminal from '../../database/interface/i_terminal'
+import { updateInterswitchConfig, getInterswitchConfig } from '../../configs/interswitchConfig';
+import {I_Interswitch} from '../../database/interface/i_interswitch'
 import Redis from '../../database/redis/Redis';
-// import net from 'net'
-// import moment from 'moment';
+import net from 'net'
+import moment from 'moment';
 
 // Import neccessary config files
 const config = require('../../ciso8583/engine/interswitch-dataelement-config.json');
-// const baseconfig = require('../../ciso8583/engine/dataelement-config.json');
+const baseconfig = require('../../ciso8583/engine/dataelement-config.json');
 const baseMessage = require('../../ciso8583/engine/dataelements.json');
 const baseSubFieldMessage = require('../../ciso8583/engine/subField-data-elements.json');
-// const ISO8583 = require('iso8583-js');
+const ISO8583 = require('iso8583-js');
 
 import { MyPackager } from '../../ciso8583/MyPackager'
-// import { response } from 'express';
-// import { AnyARecord } from 'dns';
-// import TerminalPoolModel from '../../database/model/TerminalPoolModel';
-// import TerminalPoolService, { SwitchName } from '../../services/TerminalPoolService';
-// import { sub } from 'date-fns';
-
+import { response } from 'express';
+import { AnyARecord } from 'dns';
+import TerminalPoolModel from '../../database/model/TerminalPoolModel';
+import TerminalPoolService, { SwitchName } from '../../services/TerminalPoolService';
+import { sub } from 'date-fns';
 const jsPos = require('jspos');
-const { ISOUtil } = jsPos;
+const { ISOUtil, ISOMsg } = jsPos;
 
-// let isoInstance = new ISO8583();
+let isoInstance = new ISO8583();
 
 
-// const iso8583 = require('iso_8583');
-// const customIsoFormat = require('../../ciso8583/engine/customIsoFormat.json');
+const iso8583 = require('iso_8583');
+const customIsoFormat = require('../../ciso8583/engine/customIsoFormat.json');
 
-// let globalSocketClient: any = null
+let globalSocketClient: any = null
 class Interswitch {
 
     transactionDetails: any;
@@ -121,7 +114,7 @@ class Interswitch {
 
         const encPlainPin = transactionDetails.customerRef;
 
-        // let isoMSG;
+        let isoMSG;
 
         unpackedMessage.transactingTerminalId = transactionDetails.transactingTerminalId;
         logger.info(`ONLINE TRANSACTION (LOG).............`)
@@ -140,7 +133,7 @@ class Interswitch {
 
         const encPlainPin = transactionDetails.customerRef;
 
-        // let isoMSG;
+        let isoMSG;
             
         let pinBlock = '0000';
         if(encPlainPin !== null){
@@ -270,12 +263,12 @@ class Interswitch {
             let subIso = this.iso8583Parser.packSubFieldWithBinaryBitmap(subFieldMessage, config['127'].nestedElements);
             //logger.info(`Interswitch SubISO msg: ${subIso.isoMessage}`);
 
-            msg.setField(127, subIso.isoMessageBytes.toString('hex'))
+            msg.setField(127, subIso.isoMessage)
 
-            let hexIsoMessage = ISOUtil.hexString(msg.pack());
+            let hexIsoMessage = ISOUtil.hexString(msg.pack());        
             let isoLength = hexIsoMessage.length / 2;
             let binLength = this.Util.getLengthBytes(isoLength);
-            const isoMessageBuffer = Buffer.from(ISOUtil.hex2byte(hexIsoMessage));
+            const isoMessageBuffer = Buffer.from(ISOUtil.hex2byte(hexIsoMessage)); 
             const requestISOMsg = Buffer.concat([binLength, isoMessageBuffer]);
 
             logger.info("Sending transaction to Interswitch Postbridge: " + requestISOMsg.toString())
@@ -291,7 +284,7 @@ class Interswitch {
         try{
             let requestData: any = {};
             Object.assign(requestData, unpackedMessage.dataElements);
-            // let reversalSubFieldMessage = JSON.parse(JSON.stringify(baseSubFieldMessage));
+            let subFieldMessage = baseSubFieldMessage;
 
             let date = new Date();
             const mmdd = this.Util.padLeft((date.getMonth()+1).toString(),'0',2) + this.Util.padLeft(date.getDate().toString(),'0',2)
@@ -383,7 +376,6 @@ class Interswitch {
              */
             logger.info(`[REVERSAL-F127] ====== Building Field 127 for Reversal (v2) ======`);
 
-            // let reversalSubFieldMessage = baseSubFieldMessage;
             let reversalSubFieldMessage: any = {};
 
             // Get current date/time components
@@ -410,7 +402,7 @@ class Interswitch {
 
             // 127.008 - Routing/additional data (LLLVAR, max 999 chars)
             const rrn = (requestData[37] || '000000000000').toString();
-            reversalSubFieldMessage['8'] = `${datetime}${stan}${rrn}`;
+            reversalSubFieldMessage['8'] = ` ${datetime}${stan}${rrn}      |`;
             logger.info(`[REVERSAL-F127] Set 127.008: "${reversalSubFieldMessage['8']}" (${reversalSubFieldMessage['8'].length} chars)`);
 
             // 127.011 - Original transaction reference (LLVAR, max 32 chars)
@@ -418,9 +410,8 @@ class Interswitch {
             reversalSubFieldMessage['11'] = `0200:${stan}:${datetime}:${refNumber}`;
             logger.info(`[REVERSAL-F127] Set 127.011: "${reversalSubFieldMessage['11']}" (${reversalSubFieldMessage['11'].length} chars)`);
 
-            // 127.013 - Currency code (FIXED 17 chars, left-aligned with trailing spaces)
-            const currencyCode = (requestData[49] || '566').toString();
-            reversalSubFieldMessage['13'] = currencyCode.padEnd(17, ' ');
+            // 127.013 - Fixed 17 chars exactly, "834" right-aligned with spaces
+            reversalSubFieldMessage['13'] = '              834';  // 14 spaces + "834" = 17 chars
             logger.info(`[REVERSAL-F127] Set 127.013: "${reversalSubFieldMessage['13']}" (${reversalSubFieldMessage['13'].length} chars)`);
 
             // 127.020 - Date in YYYYMMDD format (FIXED 8 chars, numeric)
@@ -443,7 +434,7 @@ class Interswitch {
             logger.info(`[REVERSAL-F127] Packed content preview: ${subIso.isoMessage?.substring(0, 100)}...`);
             logger.info(`[REVERSAL-F127] ====== Field 127 Build Complete ======`);
 
-            msg.setField(127, subIso.isoMessageBytes.toString('hex'))
+            msg.setField(127, subIso.isoMessage)
 
             let hexIsoMessage = ISOUtil.hexString(msg.pack());
             let isoLength = hexIsoMessage.length / 2;
@@ -741,7 +732,7 @@ class Interswitch {
     }
 
     async getKcv(data: string){
-        // const ZMK = Buffer.from(this.ZMK).toString('hex');
+        const ZMK = Buffer.from(this.ZMK).toString('hex');
         //logger.info(`Interswitch: ZMK: ${ZMK}`)
         const encrypt3des = this.Util.des3Encrypt(data, this.ZMK);
         return encrypt3des.substr(0,6);
@@ -775,7 +766,7 @@ class Interswitch {
             
             const clearPWK = await this.getClearPWK();
             const bufferClearPWK = Buffer.from(clearPWK, 'hex');
-            // const bufferPinblock = Buffer.from(pinBlock, 'hex'); 
+            const bufferPinblock = Buffer.from(pinBlock, 'hex'); 
             const encryptedPinBlock = this.Util.des3EncryptNoPadding(pinBlockHex.toUpperCase(), bufferClearPWK)
             
             //logger.info('Interswitch: Encrypted PIN Block: ' + encryptedPinBlock)
@@ -832,7 +823,7 @@ class Interswitch {
     }
 
     private getRIDAsXML(rid: string): string {
-        return `<ORIGINAL_RID>${rid}</ORIGINAL_RID>`;
+        return `212ORIGINAL_RID235<ORIGINAL_RID>${rid}</ORIGINAL_RID>`;
     }
 
     /**
