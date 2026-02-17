@@ -325,22 +325,25 @@ class handleCardTransactions {
 
     private getExtraParams<T>(field: string, unpackedMessage: any): T|String {
         if(unpackedMessage.mti != '0420' && unpackedMessage.mti != '0421'){
-            const params = unpackedMessage.dataElements[59] 
+            const params = unpackedMessage.dataElements[59]
+            if(!params){
+                return ''
+            }
             const paramsArray = params.split('|')
             switch(field){
                 case "customerRef":
-                    return paramsArray[0];
+                    return paramsArray[0] || '';
                 case "pnr":
-                    return paramsArray[1];
+                    return paramsArray[1] || '';
                 case "version":
-                    return paramsArray[2];
+                    return paramsArray[2] || '';
                 case "location":
-                    return paramsArray[3];
-                default: 
-                    return paramsArray[0]
+                    return paramsArray[3] || '';
+                default:
+                    return paramsArray[0] || ''
             }
         } else {
-            return unpackedMessage.dataElements[59]
+            return unpackedMessage.dataElements[59] || ''
         }
     }
 
