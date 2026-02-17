@@ -1,3 +1,9 @@
+/* eslint-disable no-var */
+/* eslint-disable @typescript-eslint/no-var-requires */
+/* eslint-disable @typescript-eslint/no-inferrable-types */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable prefer-const */
+/* eslint-disable @typescript-eslint/restrict-template-expressions */
 /* eslint-disable @typescript-eslint/no-misused-promises */
 
 /* eslint-disable max-len */
@@ -9,43 +15,43 @@ import logger from '../../shared/Logger';
 import handleCardTransactions from '../../controller/Transaction/handleCardTransactions';
 import deploySocketService from '../../socket/deploySocketService';
 import cISO8583 from '../../ciso8583/CISO'
-import SocketClient from '../../socket/socketClient_ISW';
-import handleSettlement from '../Transaction/handleSettlement'
-import handleNotification from '../Transaction/handleNotification'
-import { getNibssResponseMessageFromCode } from '../../utils/responseUtil'
-import handleVas from '../Transaction/handleVas'
 import Util from '../../shared/Util';
-import ITerminal from '../../database/interface/i_terminal'
-import { updateInterswitchConfig, getInterswitchConfig } from '../../configs/interswitchConfig';
-import {I_Interswitch} from '../../database/interface/i_interswitch'
 import Redis from '../../database/redis/Redis';
-import net from 'net'
-import moment from 'moment';
+// import SocketClient from '../../socket/socketClient_ISW';
+// import handleSettlement from '../Transaction/handleSettlement'
+// import handleNotification from '../Transaction/handleNotification'
+// import { getNibssResponseMessageFromCode } from '../../utils/responseUtil'
+// import handleVas from '../Transaction/handleVas'
+// import ITerminal from '../../database/interface/i_terminal'
+// import { updateInterswitchConfig, getInterswitchConfig } from '../../configs/interswitchConfig';
+// import {I_Interswitch} from '../../database/interface/i_interswitch'
+// import net from 'net'
+// import moment from 'moment';
 
 // Import neccessary config files
 const config = require('../../ciso8583/engine/interswitch-dataelement-config.json');
-const baseconfig = require('../../ciso8583/engine/dataelement-config.json');
+// const baseconfig = require('../../ciso8583/engine/dataelement-config.json');
 const baseMessage = require('../../ciso8583/engine/dataelements.json');
 const baseSubFieldMessage = require('../../ciso8583/engine/subField-data-elements.json');
 const reversalSubFieldMessage = require('../../ciso8583/engine/reversalSubField-data-elements.json');
-const ISO8583 = require('iso8583-js');
+// const ISO8583 = require('iso8583-js');
 
 import { MyPackager } from '../../ciso8583/MyPackager'
-import { response } from 'express';
-import { AnyARecord } from 'dns';
-import TerminalPoolModel from '../../database/model/TerminalPoolModel';
-import TerminalPoolService, { SwitchName } from '../../services/TerminalPoolService';
-import { sub } from 'date-fns';
+// import { response } from 'express';
+// import { AnyARecord } from 'dns';
+// import TerminalPoolModel from '../../database/model/TerminalPoolModel';
+// import TerminalPoolService, { SwitchName } from '../../services/TerminalPoolService';
+// import { sub } from 'date-fns';
+
 const jsPos = require('jspos');
 const { ISOUtil, ISOMsg } = jsPos;
 
-let isoInstance = new ISO8583();
+// let isoInstance = new ISO8583();
 
+// const iso8583 = require('iso_8583');
+// const customIsoFormat = require('../../ciso8583/engine/customIsoFormat.json');
 
-const iso8583 = require('iso_8583');
-const customIsoFormat = require('../../ciso8583/engine/customIsoFormat.json');
-
-let globalSocketClient: any = null
+// let globalSocketClient: any = null
 class Interswitch {
 
     transactionDetails: any;
