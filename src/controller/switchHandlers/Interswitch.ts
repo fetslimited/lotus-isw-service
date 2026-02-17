@@ -854,7 +854,7 @@ class Interswitch {
         return pin;
     }
 
-       // Convert a hex string to a byte array
+    // Convert a hex string to a byte array
     hexToBytes(hex: any) {
         for (var bytes = [], c = 0; c < hex.length; c += 2)
             bytes.push(parseInt(hex.substr(c, 2), 16));

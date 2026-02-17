@@ -36,6 +36,8 @@ async function initializeApp() {
     // socketServiceInstance.runTLSSocketServer()
 }
 
+logger.info('isw-service build: 2026-02-17 — getExtraParams null guard applied');
+
 // Start the application
 initializeApp().catch((error) => {
     logger.err('Failed to start application: ' + error.message);
