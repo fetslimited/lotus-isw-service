@@ -306,7 +306,9 @@ class SocketServerHandler {
      
                 let unpackedMessage = this.iso8583Parser.unpack(ISOMessage)
 
-                // Validate for appended VAS request 
+                logger.info(`[ISW-SERVER] Unpacked MTI: ${unpackedMessage.mti}, terminalId: ${unpackedMessage.dataElements?.[41]}, DE59 present: ${unpackedMessage.dataElements?.[59] != null}`);
+
+                // Validate for appended VAS request
                 const vasRequestData = this.getVasRequestData(raw_data, msgLength)
                 if(vasRequestData !== false){
                     unpackedMessage.vasData = vasRequestData

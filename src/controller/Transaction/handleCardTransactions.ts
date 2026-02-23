@@ -258,9 +258,10 @@ class handleCardTransactions {
     }
 
     public buildTransactionData(unpackedMessage: any, update=false){
+        logger.info(`[buildTransactionData] MTI: ${unpackedMessage.mti}, terminalId: ${unpackedMessage.dataElements[41]}, DE59: ${unpackedMessage.dataElements[59] != null ? `"${unpackedMessage.dataElements[59]}"` : 'NULL/ABSENT'}`);
         if (this.appEnv == "production"){
             logger.info('Unpacked Message' + JSON.stringify(unpackedMessage));
-        } 
+        }
         const maskedPan = this.getMaskedPan(unpackedMessage);
         const respCode = unpackedMessage.dataElements[39] || "102"
 
@@ -327,6 +328,7 @@ class handleCardTransactions {
         if(unpackedMessage.mti != '0420' && unpackedMessage.mti != '0421'){
             const params = unpackedMessage.dataElements[59]
             if(!params){
+                logger.info(`[getExtraParams] DE59 is null/absent for field "${field}" — returning empty string`);
                 return ''
             }
             const paramsArray = params.split('|')
