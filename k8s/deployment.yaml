@@ -2,10 +2,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: isw-service
+  namespace: application
   labels:
     app: isw-service
+    version: "build-20260223-121653"
 spec:
-  # IMPORTANT: Must be 1 replica - Socket server cannot scale horizontally
   replicas: 1
   strategy:
     type: RollingUpdate
@@ -19,92 +20,101 @@ spec:
     metadata:
       labels:
         app: isw-service
+        version: "build-20260223-121653"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "4001"
+        prometheus.io/path: "/health"
     spec:
       containers:
-        - name: isw-service
-          image: 178309657334.dkr.ecr.us-east-1.amazonaws.com/isw-service:production-latest
-          ports:
-            - containerPort: 4000
-              name: http
-              protocol: TCP
-            - containerPort: 8001
-              name: socket-plain
-              protocol: TCP
-          envFrom:
-            - secretRef:
-                name: isw-service-secrets
-          resources:
-            requests:
-              memory: "256Mi"
-              cpu: "100m"
-            limits:
-              memory: "1Gi"
-              cpu: "500m"
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: 4000
-            initialDelaySeconds: 60
-            periodSeconds: 30
-            timeoutSeconds: 10
-            failureThreshold: 3
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: 4000
-            initialDelaySeconds: 30
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 3
-          volumeMounts:
-            - name: ssl-certs
-              mountPath: /app/certs
-              readOnly: true
-      volumes:
+      - name: isw-service
+        image: isw-service:build-20260223-121653
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 4001
+          name: http
+          protocol: TCP
+        - containerPort: 8001
+          name: socket-plain
+          protocol: TCP
+        - containerPort: 5001
+          name: socket-tls
+          protocol: TCP
+        envFrom:
+        - secretRef:
+            name: isw-service-secrets
+        env:
+        # Ensure critical environment variables
+        - name: REDIS_HOST
+          value: "10.55.15.35"
+        - name: REDIS_PORT
+          value: "32002"
+        - name: REDIS_PASSWORD
+          value: "redispassword123"
+        - name: REDIS_SSL
+          value: "false"
+        - name: REDIS_TLS
+          value: "false"
+        # Timezone configuration for West Africa Time (WAT)
+        - name: TZ
+          value: "Africa/Lagos"
+        - name: NODE_TZ
+          value: "Africa/Lagos"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 4001
+            scheme: HTTP
+          initialDelaySeconds: 90
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 4001
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 4001
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+        volumeMounts:
         - name: ssl-certs
-          secret:
-            secretName: isw-ssl-certificates
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: isw-service
-  labels:
-    app: isw-service
-spec:
-  type: ClusterIP
-  ports:
-    - port: 4000
-      targetPort: 4000
-      protocol: TCP
-      name: http
-    - port: 8001
-      targetPort: 8001
-      protocol: TCP
-      name: socket-plain
-  selector:
-    app: isw-service
----
-# LoadBalancer service for external connections (if needed)
-apiVersion: v1
-kind: Service
-metadata:
-  name: isw-service-external
-  labels:
-    app: isw-service
-  annotations:
-    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
-    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
-spec:
-  type: LoadBalancer
-  ports:
-    - port: 4000
-      targetPort: 4000
-      protocol: TCP
-      name: http
-    - port: 8001
-      targetPort: 8001
-      protocol: TCP
-      name: socket-plain
-  selector:
-    app: isw-service
+          mountPath: /app/certs
+          readOnly: true
+        - name: www-certs
+          mountPath: /var/www/certs
+          readOnly: true
+        - name: tmp-volume
+          mountPath: /tmp
+      volumes:
+      - name: ssl-certs
+        secret:
+          secretName: isw-ssl-certificates
+          defaultMode: 0400
+          optional: true
+      - name: www-certs
+        secret:
+          secretName: isw-ssl-certificates
+          defaultMode: 0400
+          optional: true
+      - name: tmp-volume
+        emptyDir: {}
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 60

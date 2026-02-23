@@ -1,9 +1,13 @@
+<<<<<<< Updated upstream
 /* eslint-disable no-var */
 /* eslint-disable @typescript-eslint/no-var-requires */
 /* eslint-disable @typescript-eslint/no-inferrable-types */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable prefer-const */
 /* eslint-disable @typescript-eslint/restrict-template-expressions */
+=======
+import { getWATTimestamp } from "../../utils/timezone";
+>>>>>>> Stashed changes
 /* eslint-disable @typescript-eslint/no-misused-promises */
 
 /* eslint-disable max-len */
@@ -577,7 +581,7 @@ class Interswitch {
                     pinKey: pinDataHex.substr(0, 32),
                     keyCheck: pinDataHex.substr(32, 6),
                     sequence: 0,
-                    timestamp: new Date().toISOString()
+                    timestamp: getWATTimestamp()
                 };
 
                 logger.info(`Key exchange data: ${JSON.stringify(keyExchangeData)}`);

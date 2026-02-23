@@ -1,3 +1,4 @@
+import { getWATTimestamp } from "../../utils/timezone";
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 import { Request, Response } from 'express';
 import StatusCodes from 'http-status-codes';
@@ -35,7 +36,7 @@ export async function triggerKeyExchange(req: Request, res: Response) {
         return res.status(OK).json({
             success: true,
             message: 'Key exchange triggered successfully',
-            timestamp: new Date().toISOString(),
+            timestamp: getWATTimestamp(),
         });
 
     } catch (error: any) {
@@ -76,7 +77,7 @@ export async function triggerEcho(req: Request, res: Response) {
         return res.status(OK).json({
             success: true,
             message: 'Echo request triggered successfully',
-            timestamp: new Date().toISOString(),
+            timestamp: getWATTimestamp(),
         });
 
     } catch (error: any) {
@@ -121,7 +122,7 @@ export async function getSocketStatus(req: Request, res: Response) {
                 host: process.env.REDIS_HOST || '127.0.0.1',
                 port: process.env.REDIS_PORT || '6379'
             },
-            timestamp: new Date().toISOString(),
+            timestamp: getWATTimestamp(),
         });
 
     } catch (error: any) {

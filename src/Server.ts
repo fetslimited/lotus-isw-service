@@ -1,3 +1,4 @@
+import { getWATTimestamp } from "./utils/timezone";
 /* eslint-disable @typescript-eslint/no-var-requires */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 
@@ -46,7 +47,7 @@ app.get('/health', (req: Request, res: Response) => {
     res.status(200).json({
         status: 'healthy',
         service: 'isw-service',
-        timestamp: new Date().toISOString(),
+        timestamp: getWATTimestamp(),
         uptime: process.uptime(),
         redis: {
             connected: redisStatus,

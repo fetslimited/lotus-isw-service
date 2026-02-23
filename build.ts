@@ -3,15 +3,14 @@
  */
 
 import fs from 'fs-extra';
-import Logger from 'jet-logger';
 import childProcess from 'child_process';
 
-// Setup logger
-const logger = new Logger();
-logger.timestamp = false;
-
-
-
+// Create a simple logger since jet-logger may have issues
+const logger = {
+    info: (msg: string) => console.log(`[INFO] ${msg}`),
+    warn: (msg: string) => console.warn(`[WARN] ${msg}`),
+    err: (msg: any) => console.error(`[ERROR] ${msg}`)
+};
 
 (async () => {
     try {
@@ -22,10 +21,12 @@ logger.timestamp = false;
         await copy('./src/views', './dist/views');
         // copy config file
         await copy('./src/configs', './dist/configs');
+        // Copy ciso8583 engine JSON files
+        await copy('./src/ciso8583/engine', './dist/ciso8583/engine');
         // Copy production env file
         await copy('./src/pre-start/env/production.env', './dist/pre-start/env/production.env');
         // Copy back-end files
-        await exec('tsc --build tsconfig.prod.json', './')
+        await exec('npx tsc --project tsconfig.prod.json', './')
     } catch (err) {
         logger.err(err);
     }
