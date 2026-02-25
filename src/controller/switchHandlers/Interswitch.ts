@@ -125,12 +125,19 @@ class Interswitch {
 
         unpackedMessage.transactingTerminalId = transactionDetails.transactingTerminalId;
         logger.info(`ONLINE TRANSACTION (LOG).............`)
-        
+
+        logger.info(`[PIN-FLOW] customerRef (encPlainPin): "${encPlainPin}" — type: ${typeof encPlainPin}, length: ${encPlainPin ? encPlainPin.length : 0}`);
+
         let pinBlock = '0000';
-        if(encPlainPin !== null){
-            pinBlock = this.getPlainPinBlock(encPlainPin)
+        if(encPlainPin !== null && encPlainPin !== ''){
+            pinBlock = this.getPlainPinBlock(encPlainPin);
+            logger.info(`[PIN-FLOW] customerRef is present — extracted plain PIN block: "${pinBlock}" (length: ${pinBlock.length})`);
+        } else {
+            logger.info(`[PIN-FLOW] customerRef is null or empty — using fallback pinBlock: "0000"`);
         }
-        
+
+        logger.info(`[PIN-FLOW] Final plain pinBlock going into sendOnlineTransaction: "${pinBlock}" (length: ${pinBlock.length})`);
+
         await this.sendOnlineTransaction(unpackedMessage, pinBlock, socketClient);
 
     }
@@ -141,11 +148,18 @@ class Interswitch {
         const encPlainPin = transactionDetails.customerRef;
 
         let isoMSG;
-            
+
+        logger.info(`[PIN-FLOW][REVERSAL] customerRef (encPlainPin): "${encPlainPin}" — type: ${typeof encPlainPin}, length: ${encPlainPin ? encPlainPin.length : 0}`);
+
         let pinBlock = '0000';
-        if(encPlainPin !== null){
-            pinBlock = this.getPlainPinBlock(encPlainPin)
+        if(encPlainPin !== null && encPlainPin !== ''){
+            pinBlock = this.getPlainPinBlock(encPlainPin);
+            logger.info(`[PIN-FLOW][REVERSAL] customerRef is present — extracted plain PIN block: "${pinBlock}" (length: ${pinBlock.length})`);
+        } else {
+            logger.info(`[PIN-FLOW][REVERSAL] customerRef is null or empty — using fallback pinBlock: "0000"`);
         }
+
+        logger.info(`[PIN-FLOW][REVERSAL] Final plain pinBlock going into sendReversalTransaction: "${pinBlock}" (length: ${pinBlock.length})`);
         
         // Pass transactingTerminalId from transactionDetails to unpackedMessage
         unpackedMessage.transactingTerminalId = transactionDetails.transactingTerminalId;
@@ -173,8 +187,9 @@ class Interswitch {
             let date = new Date();
             const mmdd = this.Util.padLeft((date.getMonth()+1).toString(),'0',2) + this.Util.padLeft(date.getDate().toString(),'0',2)
 
+            logger.info(`[PIN-FLOW] sendOnlineTransaction received plainPinBlock: "${plainPinBlock}" (length: ${plainPinBlock.length}), PAN (DE2): ${unpackedMessage.dataElements['2']}`);
             const pinBlock = await this.getEncryptedPinBlock(plainPinBlock, unpackedMessage.dataElements['2']);
-            //logger.info(`Interswitch: PINBLOCK ${pinBlock}`)
+            logger.info(`[PIN-FLOW] getEncryptedPinBlock returned: ${pinBlock !== null ? `"${pinBlock}" (length: ${String(pinBlock).length})` : 'NULL — encryption failed'}`);
             // For CashOut Interswitch
             const terminalId = unpackedMessage.transactingTerminalId;
             requestData['41'] = terminalId;
@@ -811,18 +826,20 @@ class Interswitch {
         try{
             const block_1 = `04${userpin}FFFFFFFFFF`;
             const block_2 = `0000${pan.substring(pan.length - 13, pan.length - 1)}`
+            logger.info(`[PIN-FLOW] getEncryptedPinBlock — userpin: "${userpin}", PAN: ${pan}`);
+            logger.info(`[PIN-FLOW] block_1: "${block_1}" (length: ${block_1.length}, expected 16)`);
+            logger.info(`[PIN-FLOW] block_2: "${block_2}" (length: ${block_2.length}, expected 16)`);
             const pinBlock = this.Util.xorHexString(block_1, block_2)
             const pinBlockHex = Buffer.from(pinBlock).toString('hex')
-            
-            //logger.info(`Interswitch: RAW PIN BLOCK: ${pinBlockHex}`)
-            
+            logger.info(`[PIN-FLOW] XOR pinBlock: "${pinBlock}", pinBlockHex: "${pinBlockHex}"`);
+
             const clearPWK = await this.getClearPWK();
+            logger.info(`[PIN-FLOW] clearPWK from Redis: ${clearPWK ? `"${clearPWK}"` : 'UNDEFINED — key exchange not done!'}`);
             const bufferClearPWK = Buffer.from(clearPWK, 'hex');
-            const bufferPinblock = Buffer.from(pinBlock, 'hex'); 
+            const bufferPinblock = Buffer.from(pinBlock, 'hex');
             const encryptedPinBlock = this.Util.des3EncryptNoPadding(pinBlockHex.toUpperCase(), bufferClearPWK)
-            
-            //logger.info('Interswitch: Encrypted PIN Block: ' + encryptedPinBlock)
-            
+            logger.info(`[PIN-FLOW] encryptedPinBlock (DE52): "${encryptedPinBlock}"`);
+
             return encryptedPinBlock;
         } catch(error){
             logger.err('Interswitch: Error generating encrypted pin block: ' + error)
