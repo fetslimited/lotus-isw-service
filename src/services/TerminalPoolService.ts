@@ -174,7 +174,7 @@ class TerminalPoolService {
     try {
       // Log pre-call pool state for full traceability
       const preSize = await client.lLen(liveKey).catch(() => -1);
-      const prePtr  = await client.get(ptrKeyName).catch(() => null);
+      const prePtr  = await client.get(ptrKeyName).catch((): null => null);
       logger.info(
         `[TerminalPool:getNextTerminalId] Pre-eval state — pool size: ${preSize}, ` +
         `current pointer: ${prePtr ?? '(unset, defaults to 0)'}`
@@ -203,7 +203,7 @@ class TerminalPoolService {
       }
 
       // Log post-call pointer to confirm increment
-      const postPtr = await client.get(ptrKeyName).catch(() => null);
+      const postPtr = await client.get(ptrKeyName).catch((): null => null);
       logger.info(
         `[TerminalPool:getNextTerminalId] SELECTED TID: "${tid}" | ` +
         `switch: ${sw} | pointer advanced to: ${postPtr ?? '(read failed)'}`
