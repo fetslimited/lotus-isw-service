@@ -11,12 +11,31 @@ class Redis{
     private connectionPromise: Promise<void> | null = null;
 
     private constructor(){
+        const tlsEnabled = process.env.REDIS_TLS !== 'false';
+        const host = process.env.REDIS_HOST || '127.0.0.1';
+        const port = Number(process.env.REDIS_PORT) || 6379;
+
+        // Warn when REDIS_HOST is not explicitly set — silently defaulting to
+        // localhost in production means the secret did not inject correctly.
+        if (!process.env.REDIS_HOST) {
+            logger.warn(
+                'Redis: REDIS_HOST is not set — defaulting to 127.0.0.1. ' +
+                'If this is production, check that the REDIS_HOST secret is injected correctly.'
+            );
+        }
+
+        // Warn when TLS state is not explicitly configured. The default is
+        // TLS ON (process.env.REDIS_TLS !== "false"), which will cause a
+        // TLS handshake error against a plain Redis. Set REDIS_TLS=false to disable.
+        if (process.env.REDIS_TLS === undefined) {
+            logger.warn(
+                'Redis: REDIS_TLS is not set — TLS is ENABLED by default. ' +
+                'Set REDIS_TLS=false if your Redis does not use TLS (e.g. local dev or plain ElastiCache).'
+            );
+        }
+
         const redisConfig: any = {
-            socket: {
-                host: process.env.REDIS_HOST || '127.0.0.1',
-                port: Number(process.env.REDIS_PORT) || 6379,
-                tls: process.env.REDIS_TLS !== 'false'
-            }
+            socket: { host, port, tls: tlsEnabled }
         };
 
         // Add password if configured
@@ -27,7 +46,10 @@ class Redis{
             logger.info('Redis: No password configured (authentication disabled)');
         }
 
-        logger.info(`Redis: Connecting to ${redisConfig.socket.host}:${redisConfig.socket.port} (TLS: ${redisConfig.socket.tls})`);
+        logger.info(
+            `Redis: Connecting to ${host}:${port} | TLS: ${tlsEnabled} | ` +
+            `Auth: ${process.env.REDIS_PASSWORD ? 'yes' : 'no'}`
+        );
 
         this.client = createClient(redisConfig);
 

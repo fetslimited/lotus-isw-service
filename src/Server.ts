@@ -14,6 +14,8 @@ import 'express-async-errors';
 import BaseRouter from './routes';
 import logger from './shared/Logger';
 import Redis from './database/redis/Redis';
+import TerminalPoolService, { SwitchName, FALLBACK_TIDS } from './services/TerminalPoolService';
+import mongoose from 'mongoose';
 
 const app = express();
 const { BAD_REQUEST } = StatusCodes;
@@ -40,20 +42,77 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // Health check endpoint
-app.get('/health', (req: Request, res: Response) => {
+app.get('/health', async (req: Request, res: Response) => {
     const redis = Redis.getInstance();
-    const redisStatus = redis.getConnectionStatus();
-    
+    const connectedFlag = redis.getConnectionStatus();
+
+    // Live PING — confirms Redis is actually reachable right now,
+    // not just that the in-memory flag believes it is.
+    let pingOk = false;
+    let pingError: string | null = null;
+    try {
+        const pong = await redis.getClient().ping();
+        pingOk = pong === 'PONG';
+    } catch (err: any) {
+        pingError = err.message;
+    }
+
+    // Terminal pool state — what TIDs will transactions actually use?
+    let poolSize = 0;
+    let poolPointer: number | null = null;
+    let poolTerminals: string[] = [];
+    let poolError: string | null = null;
+    if (pingOk) {
+        try {
+            const status = await TerminalPoolService.getInstance()
+                .getPoolStatus(SwitchName.INTERSWITCH);
+            poolSize      = status.size;
+            poolPointer   = status.pointer;
+            poolTerminals = status.terminals;
+        } catch (err: any) {
+            poolError = err.message;
+        }
+    }
+
+    // MongoDB connection state
+    const mongoState = mongoose.connection.readyState;
+    // 0=disconnected, 1=connected, 2=connecting, 3=disconnecting
+    const mongoStateMap: Record<number, string> = {
+        0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting',
+    };
+    const mongoConnected = mongoState === 1;
+
+    const tidSource = (pingOk && poolSize > 0) ? 'pool' : 'fallback';
+
     res.status(200).json({
         status: 'healthy',
         service: 'isw-service',
         timestamp: getWATTimestamp(),
-        uptime: process.uptime(),
+        uptime: Math.floor(process.uptime()),
         redis: {
-            connected: redisStatus,
+            connected: connectedFlag,
+            pingOk,
             host: process.env.REDIS_HOST || '127.0.0.1',
-            port: process.env.REDIS_PORT || '6379'
-        }
+            port: process.env.REDIS_PORT || '6379',
+            ...(pingError ? { error: pingError } : {}),
+        },
+        mongodb: {
+            connected: mongoConnected,
+            state: mongoStateMap[mongoState] ?? 'unknown',
+            ...(mongoConnected ? {
+                host: mongoose.connection.host,
+                port: mongoose.connection.port,
+                db: mongoose.connection.name,
+            } : {}),
+        },
+        terminalPool: {
+            tidSource,
+            poolSize,
+            poolPointer,
+            poolTerminals,
+            fallbackPool: FALLBACK_TIDS,
+            ...(poolError ? { poolError } : {}),
+        },
     });
 });
 

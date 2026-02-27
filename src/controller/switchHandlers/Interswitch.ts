@@ -28,6 +28,8 @@ import Redis from '../../database/redis/Redis';
 // import net from 'net'
 // import moment from 'moment';
 
+import TerminalPoolService, { SwitchName } from '../../services/TerminalPoolService';
+
 // Import neccessary config files
 const config = require('../../ciso8583/engine/interswitch-dataelement-config.json');
 // const baseconfig = require('../../ciso8583/engine/dataelement-config.json');
@@ -781,9 +783,20 @@ class Interswitch {
      
     }
 
-    async getTerminalId(){
-        return "2LTS0001";
-        //return await TerminalPoolService.getInstance().getNextTerminalId(SwitchName.INTERSWITCH);
+    async getTerminalId(): Promise<string> {
+        logger.info('[TerminalPool:getTerminalId] Requesting next TID from TerminalPoolService...');
+        const tid = await TerminalPoolService.getInstance().getNextTerminalId(SwitchName.INTERSWITCH);
+        if (!tid) {
+            logger.warn(
+                '[TerminalPool:getTerminalId] Pool returned null — ' +
+                'pool is empty or Redis unavailable. Falling back to hardcoded round-robin.'
+            );
+            const fallback = TerminalPoolService.getInstance().getFallbackTerminalId();
+            logger.info(`[TerminalPool:getTerminalId] Resolved TID: "${fallback}" (source: fallback)`);
+            return fallback;
+        }
+        logger.info(`[TerminalPool:getTerminalId] Resolved TID: "${tid}" (source: pool)`);
+        return tid;
     }
 
     async generateCustomResponse(requestData: any, responseCode: string){
