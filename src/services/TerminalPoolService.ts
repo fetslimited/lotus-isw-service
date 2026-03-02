@@ -1,3 +1,6 @@
+/* eslint-disable max-len */
+/* eslint-disable @typescript-eslint/restrict-template-expressions */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 import logger from '../shared/Logger';
 import Redis from '../database/redis/Redis';
 import TerminalPoolModel from '../database/model/TerminalPoolModel';
